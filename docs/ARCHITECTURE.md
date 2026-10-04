@@ -4,7 +4,7 @@
 >
 > Ce document décrit les décisions architecturales validées pour le MVP.
 > Il couvre les principes, les frontières, les flux principaux et les responsabilités.
-> Les choix d'implémentation détaillés (crates exactes, raccourcis par défaut, délais de debounce, etc.) ne sont pas figés ici.
+> Certains choix d'implémentation détaillés (crates exactes, délais de debounce, etc.) ne sont pas figés ici.
 
 ---
 
@@ -576,10 +576,12 @@ Forme générale :
 
 ```text
 - [ ] <titre> [#tags...] [@planned(YYYY-MM-DD)] [@deadline(YYYY-MM-DD)]
-- [x] <titre> [#tags...] [@completed(YYYY-MM-DD)]
+- [x] <titre> [#tags...] [@planned(YYYY-MM-DD)] [@deadline(YYYY-MM-DD)] [@completed(YYYY-MM-DD)]
 ```
 
 Les dates persistées utilisent `YYYY-MM-DD`.
+
+La completion ne supprime pas les métadonnées existantes : date prévue, deadline et tags restent attachés à la tâche. Les champs facultatifs peuvent être absents sur une ligne cochée.
 
 Les sections de l'interface ne sont jamais écrites dans le Markdown.
 
@@ -674,11 +676,13 @@ completed = true
 completedDate = None
 ```
 
-L'application peut utiliser une date effective calculée pour la session courante.
+L'application utilise comme date effective le jour où elle observe cette completion pendant la session courante.
 
 Elle ne réécrit pas automatiquement cette ligne.
 
-Lorsqu'une completion est initiée depuis l'application, la date est persistée :
+Lors de la prochaine écriture initiée par l'application, les lignes cochées sans date reçoivent leur date effective avant la sérialisation. Une sauvegarde extérieure ne déclenche aucune réécriture par l'application.
+
+Lorsqu'une completion est initiée depuis l'application, la date est persistée immédiatement :
 
 ```md
 - [x] Répondre à Paul @completed(2026-10-01)
@@ -686,7 +690,7 @@ Lorsqu'une completion est initiée depuis l'application, la date est persistée 
 
 > **Compromis MVP :**
 > une completion extérieure sans `@completed` ne possède pas de date persistante.
-> Si l'application redémarre avant qu'une écriture applicative ne fixe cette date, la date effective est recalculée lors de la nouvelle session.
+> Si l'application redémarre avant qu'une écriture applicative ne fixe cette date, la date effective est recalculée lors de la nouvelle session, comme précisé dans la SFG.
 
 ---
 
@@ -909,11 +913,11 @@ tasks_file = "/chemin/vers/tasks.md"
 autostart = true
 
 [shortcuts]
-capture = "..."
-panel = "..."
+capture = "Ctrl+Shift+Espace"
+panel = "Ctrl+Shift+T"
 ```
 
-Les valeurs exactes des raccourcis par défaut restent à définir.
+Les valeurs par défaut de capture et du panneau sont respectivement `Ctrl+Shift+Espace` et `Ctrl+Shift+T` sur Windows et Linux.
 
 ---
 
@@ -1005,6 +1009,8 @@ Deux raccourcis globaux sont configurables :
 
 - capture rapide ;
 - affichage/masquage du panneau.
+
+Leurs combinaisons par défaut sont `Ctrl+Shift+Espace` et `Ctrl+Shift+T`.
 
 La configuration conserve la valeur demandée même si l'OS refuse son enregistrement.
 
@@ -1275,7 +1281,6 @@ Les sujets suivants relèvent de la conception détaillée ou de l'implémentati
 
 - crates Rust exactes ;
 - version exacte d'Iced ;
-- raccourcis par défaut ;
 - format précis des erreurs UI ;
 - délai de coalescence du watcher ;
 - stratégie UX détaillée de purge ;

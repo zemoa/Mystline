@@ -98,7 +98,7 @@ Les données restent sur la machine.
 
 # 4. Fonctionnement général
 
-L’application démarre automatiquement à l’ouverture de la session utilisateur.
+Par défaut, l’application démarre automatiquement à l’ouverture de la session utilisateur. L’utilisateur peut désactiver ce démarrage automatique dans les paramètres.
 
 Elle reste ensuite en arrière-plan.
 
@@ -412,9 +412,15 @@ Lorsqu'une tâche est terminée :
 * son texte apparaît barré ;
 * elle permet à l’utilisateur de visualiser ce qu’il a accompli.
 
+La complétion conserve le titre, la date prévue, la deadline et les tags de la tâche. Une tâche terminée ne figure plus dans **En retard** : le jour où elle est cochée, elle apparaît barrée dans **Aujourd'hui** ou **Prochain jour ouvré** si sa date prévue correspond, et sinon dans **Toutes les tâches**.
+
 À partir du lendemain, elle disparaît de la vue principale.
 
 Elle reste néanmoins conservée dans un historique.
+
+Lorsqu'une tâche est cochée directement dans un fichier de tâches externe sans date de fin, l'application considère qu'elle vient d'être cochée au moment où elle observe ce changement. Elle la traite comme une tâche terminée ce jour-là. La date observée est inscrite dans le fichier lors de la prochaine écriture effectuée par l'application, sans réécriture spontanée du fichier après l'édition extérieure.
+
+Si l'application redémarre avant cette écriture, la date réelle du cochage ne peut pas être retrouvée : la tâche est de nouveau considérée comme venant d'être cochée au moment de son observation au démarrage. Dans ce seul cas, sa visibilité le jour même et son retrait le lendemain se calculent à partir de cette nouvelle observation.
 
 ---
 
