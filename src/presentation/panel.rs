@@ -67,12 +67,23 @@ pub fn deadline_tone(date: NaiveDate, today: NaiveDate) -> DeadlineTone {
     }
 }
 
+pub fn task_deadline_tone(task: &Task, today: NaiveDate) -> Option<DeadlineTone> {
+    task.deadline.map(|date| {
+        if task.completed {
+            DeadlineTone::Future
+        } else {
+            deadline_tone(date, today)
+        }
+    })
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Row {
     pub index: usize,
     pub section: Section,
 }
 
+#[derive(Clone)]
 pub struct Editor {
     pub position: usize,
     pub revision: u64,
@@ -82,7 +93,14 @@ pub struct Editor {
     pub invalidated: bool,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum PanelMode {
+    Daily,
+    History,
+}
+
 pub struct PanelState {
+    pub mode: PanelMode,
     pub today: NaiveDate,
     pub query: String,
     pub search_active: bool,
@@ -94,6 +112,7 @@ pub struct PanelState {
 impl PanelState {
     pub fn new(today: NaiveDate) -> Self {
         Self {
+            mode: PanelMode::Daily,
             today,
             query: String::new(),
             search_active: false,
@@ -104,7 +123,22 @@ impl PanelState {
     }
 
     pub fn rows(&self, snapshot: &Snapshot) -> Vec<Row> {
-        let query = self.query.to_lowercase();
+        if self.mode == PanelMode::History {
+            let mut rows: Vec<_> = snapshot
+                .tasks
+                .iter()
+                .enumerate()
+                .filter(|(_, task)| task.completed && self.matches_filters(task))
+                .map(|(index, _)| Row {
+                    index,
+                    section: Section::All,
+                })
+                .collect();
+            rows.sort_by_key(|row| {
+                std::cmp::Reverse(snapshot.tasks[row.index].effective_completion_date())
+            });
+            return rows;
+        }
         let mut rows = Vec::new();
         for group in Section::ALL {
             rows.extend(
@@ -113,26 +147,64 @@ impl PanelState {
                     .iter()
                     .enumerate()
                     .filter_map(|(index, task)| {
-                        let matches_query = task.title.to_lowercase().contains(&query)
-                            || task
-                                .tags
-                                .iter()
-                                .any(|tag| tag.to_lowercase().contains(&query));
-                        let matches_tag = self.tag.as_ref().is_none_or(|tag| {
-                            task.tags.iter().any(|candidate| same_tag(candidate, tag))
-                        });
-                        (!task.completed
+                        ((!task.completed || task.effective_completion_date() == Some(self.today))
                             && section(task, self.today) == group
-                            && matches_query
-                            && matches_tag)
-                            .then_some(Row {
-                                index,
-                                section: group,
-                            })
+                            && self.matches_filters(task))
+                        .then_some(Row {
+                            index,
+                            section: group,
+                        })
                     }),
             );
         }
         rows
+    }
+
+    fn matches_filters(&self, task: &Task) -> bool {
+        let query = self.query.to_lowercase();
+        (task.title.to_lowercase().contains(&query)
+            || task
+                .tags
+                .iter()
+                .any(|tag| tag.to_lowercase().contains(&query)))
+            && self
+                .tag
+                .as_ref()
+                .is_none_or(|tag| task.tags.iter().any(|candidate| same_tag(candidate, tag)))
+    }
+
+    pub fn toggle_history(&mut self) {
+        if self.editor.is_none() {
+            self.mode = match self.mode {
+                PanelMode::Daily => PanelMode::History,
+                PanelMode::History => PanelMode::Daily,
+            };
+            self.search_active = false;
+        }
+    }
+
+    /// Le snapshot confirmé est le seul résultat visible d'une complétion.
+    pub fn complete(
+        &mut self,
+        repo: &mut TaskRepository,
+        revision: u64,
+        position: usize,
+        today: NaiveDate,
+    ) -> Option<Snapshot> {
+        if self.mode != PanelMode::Daily || self.editor.is_some() {
+            return None;
+        }
+        self.today = today;
+        match application::complete_task(repo, revision, position, today) {
+            Ok(snapshot) => {
+                self.error = None;
+                Some(snapshot)
+            }
+            Err(error) => {
+                self.error = Some(error.to_string());
+                None
+            }
+        }
     }
 
     pub fn indices(&self, snapshot: &Snapshot) -> Vec<usize> {
@@ -140,6 +212,9 @@ impl PanelState {
     }
 
     pub fn begin_edit(&mut self, snapshot: &Snapshot, position: usize) {
+        if self.mode == PanelMode::History {
+            return;
+        }
         if let Some(task) = snapshot.tasks.get(position).filter(|task| !task.completed) {
             self.editor = Some(Editor {
                 position,
@@ -197,7 +272,14 @@ impl PanelState {
 
     /// Renvoie le voisin visible de la même section ; aux bornes, aucune action.
     pub fn neighbor(&self, snapshot: &Snapshot, selected: usize, down: bool) -> Option<usize> {
-        let rows = self.rows(snapshot);
+        if self.mode == PanelMode::History {
+            return None;
+        }
+        let rows: Vec<_> = self
+            .rows(snapshot)
+            .into_iter()
+            .filter(|row| !snapshot.tasks[row.index].completed)
+            .collect();
         let at = rows.iter().position(|row| row.index == selected)?;
         let target = if down {
             at.checked_add(1)?
@@ -222,6 +304,10 @@ impl PanelState {
         if self.search_active || !self.query.is_empty() {
             self.search_active = false;
             self.query.clear();
+            return true;
+        }
+        if self.mode == PanelMode::History {
+            self.mode = PanelMode::Daily;
             return true;
         }
         false
@@ -262,7 +348,7 @@ mod tests {
     fn les_sections_sont_exclusives_et_ordonnees() {
         // RG-F2-08/09 — Étant donné un vendredi et un fichier volontairement désordonné.
         let snapshot = snapshot(
-            "- [ ] Sans date\n- [ ] Lundi @planned(2026-10-12)\n- [ ] Hier @planned(2026-10-08)\n- [ ] Aujourd'hui @planned(2026-10-09)\n- [ ] En retard @planned(2026-10-09) @deadline(2026-10-08)\n- [ ] Plus tard @planned(2026-10-20)\n- [x] Terminée @deadline(2026-10-01)\n",
+            "- [ ] Sans date\n- [ ] Lundi @planned(2026-10-12)\n- [ ] Hier @planned(2026-10-08)\n- [ ] Aujourd'hui @planned(2026-10-09)\n- [ ] En retard @planned(2026-10-09) @deadline(2026-10-08)\n- [ ] Plus tard @planned(2026-10-20)\n- [x] Terminée @deadline(2026-10-01) @completed(2026-10-01)\n",
         );
         // Quand le panneau calcule ses lignes.
         let rows = PanelState::new(date(9)).rows(&snapshot);

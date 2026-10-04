@@ -14,7 +14,7 @@ L’application est prévue pour Windows et Linux, avec des données conservées
 
 ## État du projet
 
-Le socle **F0 — Mise en place**, **F1 — Capturer et consulter ses tâches** et **F2 — Organiser et retrouver ses tâches** sont implémentés : processus résident, fichier Markdown local, détection des éditions extérieures, configuration du démarrage automatique, tray et raccourcis initiaux sous Windows, X11 et Wayland. La capture, l'édition, les dates, les tags, les quatre sections, la recherche, le filtre par tag et l'ordre manuel sont disponibles. La complétion et l'historique relèvent de F3 et viendront ensuite.
+Le socle **F0 — Mise en place**, **F1 — Capturer et consulter ses tâches**, **F2 — Organiser et retrouver ses tâches** et **F3 — Terminer et suivre ses tâches** sont implémentés : processus résident, fichier Markdown local, détection des éditions extérieures, configuration du démarrage automatique, tray et raccourcis initiaux sous Windows, X11 et Wayland. La capture, l'édition, les dates, les tags, les quatre sections, la recherche, le filtre par tag, l'ordre manuel, la complétion et l'historique sont disponibles.
 
 ## Lancer l'application
 
@@ -22,9 +22,15 @@ Installer Rust puis lancer `cargo run` depuis le projet. Le programme crée `con
 
 `Ctrl+Shift+Espace` (ou « Capture rapide » dans le tray) ouvre la saisie : saisir un titre et appuyer sur Entrée pour l'enregistrer, ou Échap pour annuler. Facultativement, ajouter `/p jeudi`, `/d 2026-10-09` et `#mission`. Les dates acceptées sont `YYYY-MM-DD`, `aujourd'hui`, `demain` ou un jour de semaine français. Un titre vide, une commande répétée ou une date invalide ne sont pas enregistrés ; une erreur laisse le texte dans la saisie. Pour écrire un token littéral, utiliser `\#mission` ou `\/p vendredi` ; un antislash littéral s'écrit `\\`. F1 affiche l'aide et Échap la ferme en premier.
 
-`Ctrl+Shift+T` (ou « Ouvrir / masquer le panneau » dans le tray) affiche ou masque les tâches actives, réparties entre **En retard**, **Aujourd'hui**, **Prochain jour ouvré** et **Toutes les tâches**. ↑ et ↓ déplacent la sélection ; Entrée édite son titre et ses commandes ; Entrée enregistre et Échap annule. Les dates existantes sont présentées en `YYYY-MM-DD`. Effacer une commande retire sa métadonnée. Une édition devenue obsolète conserve son brouillon et demande de rouvrir la tâche avant de valider.
+`Ctrl+Shift+T` (ou « Ouvrir / masquer le panneau » dans le tray) affiche ou masque les tâches actives et celles terminées aujourd'hui, réparties entre **En retard**, **Aujourd'hui**, **Prochain jour ouvré** et **Toutes les tâches**. ↑ et ↓ déplacent la sélection ; Entrée édite le titre et les commandes d'une tâche active ; Entrée enregistre et Échap annule. Les dates existantes sont présentées en `YYYY-MM-DD`. Effacer une commande retire sa métadonnée. Une édition devenue obsolète conserve son brouillon et demande de rouvrir la tâche avant de valider.
 
 `Ctrl+F` recherche dans les titres et les tags. Entrée rend la main à la liste en conservant la requête ; Échap retire la recherche avant de fermer le panneau. Cliquer un tag, ou l'atteindre par Tab/Maj+Tab puis Entrée, active son filtre ; « Retirer le filtre » l'enlève. Recherche et filtre se combinent. `Ctrl+↑` et `Ctrl+↓` échangent la tâche sélectionnée avec sa voisine visible dans la même section ; les lignes masquées gardent leur position. Le vendredi, le prochain jour ouvré est lundi, alors que `/p demain` désigne samedi. Une tâche avec seulement un titre ne demande aucun classement préalable.
+
+Cliquer la case d'une tâche ou presser `Espace` sur sa sélection la termine et enregistre immédiatement la date locale. Elle reste barrée aujourd'hui, avec ses métadonnées ; une tâche en retard rejoint sa section de planification ou **Toutes les tâches**, sans alerte de deadline. Dès le lendemain, même avec le panneau ouvert, elle quitte la vue quotidienne. Les tâches terminées ne se rouvrent pas, ne s'éditent pas et ne se réordonnent pas dans le MVP ; les déplacements de tâches actives les ignorent.
+
+`Ctrl+H` ou le bouton « Historique », accessible par Tab puis Entrée, affiche toutes les tâches terminées du plus récent au plus ancien, avec leur date de fin. Recherche et filtre par tag restent disponibles et sont conservés entre les vues. ↑/↓ parcourent l'historique ; « Retour », `Ctrl+H` ou Échap revient au quotidien, après avoir retiré une recherche active. Une nouvelle ouverture du panneau présente le quotidien.
+
+Cocher extérieurement une ligne avec `@completed(YYYY-MM-DD)` utilise cette date. Sans date, le jour d'observation sert de date de fin ; aucune écriture immédiate n'est déclenchée et la prochaine sauvegarde applicative fixe cette date. Un redémarrage avant cette sauvegarde renouvelle la date d'observation.
 
 Sur Wayland, les raccourcis passent par **XDG Global Shortcuts** : le portail du bureau peut demander une autorisation ou refuser une combinaison ; les paramètres indiquent alors son état. L'icône de tray Linux utilise StatusNotifierItem (KSNI) et requiert un bureau qui l'affiche. Pour conserver le démarrage automatique après le développement, lancer un binaire installé à un emplacement stable plutôt que `target/debug/mystline`.
 
@@ -34,3 +40,4 @@ Sur Wayland, les raccourcis passent par **XDG Global Shortcuts** : le portail du
 - [Architecture](docs/ARCHITECTURE.md)
 - [Guide de développement](docs/DEVELOPPER.md)
 - [Scénarios F2 et tests exécutables](docs/features/F2-organiser-et-retrouver-ses-taches.md#tests-comme-documentation)
+- [Scénarios F3 et tests exécutables](docs/features/F3-terminer-et-suivre-ses-taches.md#tests-comme-documentation)

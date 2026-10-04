@@ -55,22 +55,86 @@ fn validate(input: &TaskInput) -> Result<TaskInput, CreateTaskError> {
     Ok(input)
 }
 
+/// Intention structurée, commune à la projection optimiste et à la persistance.
+#[derive(Debug, Clone)]
+pub enum TaskCommand {
+    Create(TaskInput),
+    Update { position: usize, input: TaskInput },
+    Complete { position: usize, today: NaiveDate },
+    Reorder { from: usize, to: usize },
+}
+
+pub fn propose_task_change(
+    snapshot: &Snapshot,
+    revision: u64,
+    command: &TaskCommand,
+) -> Result<Snapshot, CreateTaskError> {
+    if snapshot.revision != revision {
+        return Err(RepositoryError::Stale.into());
+    }
+    let mut proposed = snapshot.clone();
+    match command {
+        TaskCommand::Create(input) => {
+            let input = validate(input)?;
+            proposed.tasks.push(Task {
+                title: input.title,
+                planned: input.planned,
+                deadline: input.deadline,
+                tags: input.tags,
+                completed: false,
+                completed_date: None,
+                observed_completion: None,
+            });
+        }
+        TaskCommand::Update { position, input } => {
+            let input = validate(input)?;
+            let task = active_task(&mut proposed, *position)?;
+            task.title = input.title;
+            task.planned = input.planned;
+            task.deadline = input.deadline;
+            task.tags = input.tags;
+        }
+        TaskCommand::Complete { position, today } => {
+            let task = active_task(&mut proposed, *position)?;
+            task.completed = true;
+            task.completed_date = Some(*today);
+            task.observed_completion = None;
+        }
+        TaskCommand::Reorder { from, to } => {
+            active_task(&mut proposed, *from)?;
+            active_task(&mut proposed, *to)?;
+            proposed.tasks.swap(*from, *to);
+        }
+    }
+    Ok(proposed)
+}
+
+fn active_task(snapshot: &mut Snapshot, position: usize) -> Result<&mut Task, CreateTaskError> {
+    snapshot
+        .tasks
+        .get_mut(position)
+        .filter(|task| !task.completed)
+        .ok_or(CreateTaskError::InvalidPosition)
+}
+
+pub fn apply_task_command(
+    repo: &mut TaskRepository,
+    revision: u64,
+    command: &TaskCommand,
+) -> Result<Snapshot, CreateTaskError> {
+    let proposed = propose_task_change(&repo.snapshot(), revision, command)?;
+    if matches!(command, TaskCommand::Reorder { from, to } if from == to) {
+        return Ok(proposed);
+    }
+    Ok(repo.commit(revision, proposed.tasks)?)
+}
+
 pub fn create_task_from_input(
     repo: &mut TaskRepository,
     input: &TaskInput,
 ) -> Result<Snapshot, CreateTaskError> {
-    let input = validate(input)?;
-    let mut snapshot = repo.snapshot();
-    snapshot.tasks.push(Task {
-        title: input.title,
-        planned: input.planned,
-        deadline: input.deadline,
-        tags: input.tags,
-        completed: false,
-        completed_date: None,
-        observed_completion: None,
-    });
-    Ok(repo.commit(snapshot.revision, snapshot.tasks)?)
+    let revision = repo.snapshot().revision;
+    apply_task_command(repo, revision, &TaskCommand::Create(input.clone()))
 }
 
 pub fn update_task(
@@ -79,49 +143,34 @@ pub fn update_task(
     position: usize,
     input: &TaskInput,
 ) -> Result<Snapshot, CreateTaskError> {
-    let input = validate(input)?;
-    let mut snapshot = repo.snapshot();
-    if snapshot.revision != revision {
-        return Err(RepositoryError::Stale.into());
-    }
-    let task = snapshot
-        .tasks
-        .get_mut(position)
-        .filter(|task| !task.completed)
-        .ok_or(CreateTaskError::InvalidPosition)?;
-    task.title = input.title;
-    task.planned = input.planned;
-    task.deadline = input.deadline;
-    task.tags = input.tags;
-    Ok(repo.commit(revision, snapshot.tasks)?)
+    apply_task_command(
+        repo,
+        revision,
+        &TaskCommand::Update {
+            position,
+            input: input.clone(),
+        },
+    )
+}
+
+/// Termine une tâche à la date locale fournie, sans modifier ses métadonnées.
+pub fn complete_task(
+    repo: &mut TaskRepository,
+    revision: u64,
+    position: usize,
+    today: NaiveDate,
+) -> Result<Snapshot, CreateTaskError> {
+    apply_task_command(repo, revision, &TaskCommand::Complete { position, today })
 }
 
 /// La présentation fournit deux voisins visibles de la même section.
-/// Une permutation laisse toutes les autres lignes à leur position exacte.
 pub fn reorder_tasks(
     repo: &mut TaskRepository,
     revision: u64,
     from: usize,
     to: usize,
 ) -> Result<Snapshot, CreateTaskError> {
-    let mut snapshot = repo.snapshot();
-    if snapshot.revision != revision {
-        return Err(RepositoryError::Stale.into());
-    }
-    for position in [from, to] {
-        if snapshot
-            .tasks
-            .get(position)
-            .is_none_or(|task| task.completed)
-        {
-            return Err(CreateTaskError::InvalidPosition);
-        }
-    }
-    if from == to {
-        return Ok(snapshot);
-    }
-    snapshot.tasks.swap(from, to);
-    Ok(repo.commit(revision, snapshot.tasks)?)
+    apply_task_command(repo, revision, &TaskCommand::Reorder { from, to })
 }
 
 #[cfg(test)]
