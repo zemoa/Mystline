@@ -9,6 +9,10 @@
 - Mettre à jour la documentation concernée lorsqu'une règle ou une décision change.
 - Expliquer dans une proposition de changement le pourquoi, les choix importants et la manière de vérifier le résultat.
 
+## Vérifier le socle Rust
+
+Depuis la racine du projet : `cargo fmt --check`, `cargo test`, `cargo clippy --all-targets -- -D warnings` et `cargo check --target x86_64-pc-windows-gnu` si la cible Windows est installée. Tester les interactions tray et raccourcis sur des sessions Windows, X11 et Wayland : une compilation croisée ne vérifie pas les comportements du compositeur ou du shell.
+
 ## Conventional Commits
 
 Format : `type(portée): description courte`, à l'impératif et sans point final. La portée est facultative.

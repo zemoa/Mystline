@@ -12,7 +12,15 @@ Mystline est un projet de gestionnaire de tâches personnel, local et minimalist
 
 L’application est prévue pour Windows et Linux, avec des données conservées sur la machine, sans compte, cloud, synchronisation ni notifications. L’architecture prévoit un fichier de tâches Markdown `tasks.md`, lisible et modifiable avec d’autres outils.
 
-Le projet est actuellement décrit par ses spécifications et son architecture ; ce README présente le fonctionnement visé, pas des fonctionnalités déjà disponibles.
+## État du projet
+
+Le socle **F0 — Mise en place** est implémenté : processus résident, fichier Markdown local, détection des éditions extérieures, configuration du démarrage automatique, tray et raccourcis initiaux sous Windows, X11 et Wayland. La capture d'une tâche depuis la fenêtre et la consultation au clavier appartiennent à F1 ; l'organisation et la complétion viendront ensuite.
+
+## Lancer l'application
+
+Installer Rust puis lancer `cargo run` depuis le projet. Le programme crée `config.toml` et `tasks.md` dans le répertoire de configuration de l'utilisateur et reste en arrière-plan. Le tray donne accès au panneau, aux paramètres et à « Quitter ». Dans les paramètres, saisir un chemin absolu pour utiliser un fichier Markdown existant ou créer un nouveau fichier. La saisie d'un chemin se fait au clavier.
+
+Sur Wayland, les raccourcis passent par **XDG Global Shortcuts** : le portail du bureau peut demander une autorisation ou refuser une combinaison ; les paramètres indiquent alors son état. L'icône de tray Linux utilise StatusNotifierItem (KSNI) et requiert un bureau qui l'affiche. Pour conserver le démarrage automatique après le développement, lancer un binaire installé à un emplacement stable plutôt que `target/debug/mystline`.
 
 ## Documentation
 

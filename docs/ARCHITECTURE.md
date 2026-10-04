@@ -1012,6 +1012,8 @@ Deux raccourcis globaux sont configurables :
 
 Leurs combinaisons par défaut sont `Ctrl+Shift+Espace` et `Ctrl+Shift+T`.
 
+Sur Linux Wayland, l'enregistrement passe par le portail XDG Global Shortcuts : le compositeur peut demander une autorisation, refuser un raccourci ou proposer une combinaison différente. L'état actif reflète les raccourcis effectivement accordés. Sur X11 et Windows, l'enregistrement utilise les API de raccourcis globaux du système. Le tray reste l'accès de repli si le portail ou l'un des raccourcis est indisponible.
+
 La configuration conserve la valeur demandée même si l'OS refuse son enregistrement.
 
 Runtime :
@@ -1061,7 +1063,7 @@ Le tray ne contient :
 
 ## 24. Cycle de vie des surfaces
 
-Toutes les surfaces Iced sont créées au démarrage.
+L'état des surfaces Iced est créé au démarrage. Le processus Iced démarre comme daemon, sans fenêtre visible. Les fenêtres natives sont ouvertes à la demande et fermées lorsqu'elles sont masquées : l'état et le snapshot restent détenus par le processus résident. Ce choix évite de dépendre d'une API de masquage de fenêtre non exposée par Iced et fonctionne aussi sous Wayland.
 
 ```text
 QuickCapture
@@ -1069,12 +1071,12 @@ TaskPanel
 Settings
 ```
 
-Elles sont ensuite uniquement affichées ou masquées.
+Les surfaces sont ensuite ouvertes ou fermées selon les demandes utilisateur.
 
 ```text
-fermer QuickCapture → hide
-fermer TaskPanel    → hide
-fermer Settings     → hide
+fermer QuickCapture → fermer la fenêtre native, garder le processus
+fermer TaskPanel    → fermer la fenêtre native, garder le processus
+fermer Settings     → fermer la fenêtre native, garder le processus
 ```
 
 La fermeture d'une surface ne quitte jamais le processus.
