@@ -14,7 +14,7 @@ use std::{
     },
 };
 use tray_icon::{
-    Icon, TrayIcon, TrayIconBuilder,
+    Icon, MouseButton, MouseButtonState, TrayIcon, TrayIconBuilder, TrayIconEvent,
     menu::{Menu, MenuEvent, MenuItem},
 };
 
@@ -22,6 +22,7 @@ use tray_icon::{
 pub enum Event {
     Capture,
     Panel,
+    OpenPanel,
     Settings,
     Quit,
     FileChanged,
@@ -49,6 +50,17 @@ pub struct Tray {
     _icon: TrayIcon,
 }
 
+fn tray_action(event: TrayIconEvent) -> Option<Event> {
+    match event {
+        TrayIconEvent::Click {
+            button: MouseButton::Left,
+            button_state: MouseButtonState::Up,
+            ..
+        } => Some(Event::OpenPanel),
+        _ => None,
+    }
+}
+
 impl Tray {
     pub fn new() -> Result<Self, Box<dyn std::error::Error>> {
         let menu = Menu::new();
@@ -71,6 +83,11 @@ impl Tray {
             };
             emit(action);
         }));
+        TrayIconEvent::set_event_handler(Some(|event| {
+            if let Some(action) = tray_action(event) {
+                emit(action);
+            }
+        }));
         let mut pixels = vec![0u8; 32 * 32 * 4];
         for y in 0..32 {
             for x in 0..32 {
@@ -85,6 +102,7 @@ impl Tray {
             .with_icon(icon)
             .with_tooltip("Mystline")
             .with_menu(Box::new(menu))
+            .with_menu_on_left_click(false)
             .build()?;
         Ok(Self { _icon: icon })
     }
@@ -245,4 +263,54 @@ pub async fn portal_shortcuts() -> Result<(), Box<dyn std::error::Error + Send +
         }
     }
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn click(button: MouseButton, button_state: MouseButtonState) -> TrayIconEvent {
+        TrayIconEvent::Click {
+            id: "mystline".into(),
+            position: tray_icon::dpi::PhysicalPosition::new(0.0, 0.0),
+            rect: tray_icon::Rect::default(),
+            button,
+            button_state,
+        }
+    }
+
+    #[test]
+    fn primary_click_opens_panel_only_on_release() {
+        assert!(tray_action(click(MouseButton::Left, MouseButtonState::Down)).is_none());
+        assert!(matches!(
+            tray_action(click(MouseButton::Left, MouseButtonState::Up)),
+            Some(Event::OpenPanel)
+        ));
+    }
+
+    #[test]
+    fn other_tray_interactions_do_not_open_panel() {
+        for button in [MouseButton::Right, MouseButton::Middle] {
+            for state in [MouseButtonState::Down, MouseButtonState::Up] {
+                assert!(tray_action(click(button, state)).is_none());
+            }
+        }
+        assert!(
+            tray_action(TrayIconEvent::DoubleClick {
+                id: "mystline".into(),
+                position: tray_icon::dpi::PhysicalPosition::new(0.0, 0.0),
+                rect: tray_icon::Rect::default(),
+                button: MouseButton::Left,
+            })
+            .is_none()
+        );
+        assert!(
+            tray_action(TrayIconEvent::Enter {
+                id: "mystline".into(),
+                position: tray_icon::dpi::PhysicalPosition::new(0.0, 0.0),
+                rect: tray_icon::Rect::default(),
+            })
+            .is_none()
+        );
+    }
 }

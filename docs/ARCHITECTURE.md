@@ -583,6 +583,17 @@ Les dates persistées utilisent `YYYY-MM-DD`.
 
 La completion ne supprime pas les métadonnées existantes : date prévue, deadline et tags restent attachés à la tâche. Les champs facultatifs peuvent être absents sur une ligne cochée.
 
+Dans `tasks.md`, `#` et `@` en début de token (début du titre ou après un blanc) désignent respectivement un tag et une métadonnée, sauf s'ils sont précédés d'un antislash sur une ligne portant `@title-escaped(1)`. Un `#` non échappé sans nom de tag est invalide. Le codec échappe ces caractères lorsqu'ils appartiennent littéralement au titre et double les antislashs du titre ; il ajoute alors `@title-escaped(1)` à la ligne. Exemples de titres et de leur écriture dans le fichier :
+
+| Titre de la tâche | Fragment Markdown du titre |
+| --- | --- |
+| `#architecture` | `\#architecture` |
+| `#` | `\#` |
+| `\#mission` (avec un antislash dans le titre) | `\\#mission` |
+| `Relire @deadline(2026-10-05)` | `Relire \@deadline(2026-10-05)` |
+
+Pour ces exemples, la ligne complète contient aussi `@title-escaped(1)`, par exemple `- [ ] \#architecture @title-escaped(1)`. Une ligne existante sans ce marqueur conserve ses antislashs littéraux (y compris `\\serveur` et `\#mission`) ; à la prochaine écriture applicative, elle reçoit si nécessaire le nouveau codage et son marqueur sans changer le titre. Un `#mission` non échappé dans un fichier externe reste un vrai tag. Les espaces internes du titre sont conservés ; lors de la création par titre seul, seuls les espaces aux deux extrémités sont retirés. Cette convention concerne le **fichier Markdown** : elle ne préjuge pas de l'interprétation future des commandes saisies dans l'interface (F2).
+
 Les sections de l'interface ne sont jamais écrites dans le Markdown.
 
 ---
@@ -622,6 +633,8 @@ serialize(Task[])
 Aucun composant UI ne parse directement les métadonnées Markdown.
 
 Le codec est responsable du format canonique lors des écritures initiées par l'application.
+
+Il reconnaît les tokens `#tag` et `@...` non échappés comme métadonnées. Sur une ligne marquée `@title-escaped(1)`, il décode `\#` et `\@` en début de mot du titre ainsi que `\\` en antislash littéral ; sans ce marqueur, les antislashs du titre sont conservés tels quels. La sérialisation échappe les caractères réservés du titre et ajoute ce marqueur si un échappement est nécessaire. La relecture d'un fichier écrit par l'application retrouve donc le titre original sans transformer un fragment littéral en tag ni modifier les antislashs d'un ancien fichier.
 
 ---
 
@@ -1043,6 +1056,8 @@ Nouvelle tentative uniquement :
 ## 23. Tray
 
 Le tray est une surface de contrôle système minimale.
+
+Le clic principal sur son icône déclenche une demande d'ouverture du panneau, distincte de l'affichage/masquage demandé par le raccourci ou l'entrée du menu. L'UI ouvre le panneau ou redonne le focus à sa fenêtre existante. Le clic secondaire ouvre le menu. Les activations du backend Linux KSNI et les clics Windows sont transmis par le même canal d'événements desktop, sans polling.
 
 ```text
 Tray

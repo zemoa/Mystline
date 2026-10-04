@@ -5,7 +5,7 @@ edition = "2024"
 license = "MIT"
 
 [dependencies]
-iced = { version = "0.14", default-features = false, features = ["tiny-skia", "x11", "wayland", "tokio"] }
+iced = { version = "0.14", default-features = false, features = ["tiny-skia", "x11", "wayland", "tokio", "advanced"] }
 chrono = { version = "0.4", default-features = false, features = ["std", "clock"] }
 serde = { version = "1", features = ["derive"] }
 toml = "0.9"

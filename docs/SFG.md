@@ -120,6 +120,8 @@ Un second raccourci affiche ou masque un panneau léger contenant les tâches.
 
 Le panneau doit pouvoir être appelé et fermé rapidement sans passer par une fenêtre d’application classique.
 
+Un clic avec le bouton principal sur l'icône de l'application dans la zone de notification ouvre également le panneau. S'il est déjà ouvert, ce clic lui redonne le focus sans le fermer ni ouvrir une seconde fenêtre. Le bouton secondaire donne accès au menu de l'icône.
+
 ---
 
 # 5. Modèle d'une tâche

@@ -14,11 +14,13 @@ L’application est prévue pour Windows et Linux, avec des données conservées
 
 ## État du projet
 
-Le socle **F0 — Mise en place** est implémenté : processus résident, fichier Markdown local, détection des éditions extérieures, configuration du démarrage automatique, tray et raccourcis initiaux sous Windows, X11 et Wayland. La capture d'une tâche depuis la fenêtre et la consultation au clavier appartiennent à F1 ; l'organisation et la complétion viendront ensuite.
+Le socle **F0 — Mise en place** et **F1 — Capturer et consulter ses tâches** sont implémentés : processus résident, fichier Markdown local, détection des éditions extérieures, configuration du démarrage automatique, tray et raccourcis initiaux sous Windows, X11 et Wayland. La capture par titre et la consultation des tâches actives au clavier sont disponibles ; l'organisation et la complétion viendront ensuite.
 
 ## Lancer l'application
 
-Installer Rust puis lancer `cargo run` depuis le projet. Le programme crée `config.toml` et `tasks.md` dans le répertoire de configuration de l'utilisateur et reste en arrière-plan. Le tray donne accès au panneau, aux paramètres et à « Quitter ». Dans les paramètres, saisir un chemin absolu pour utiliser un fichier Markdown existant ou créer un nouveau fichier. La saisie d'un chemin se fait au clavier.
+Installer Rust puis lancer `cargo run` depuis le projet. Le programme crée `config.toml` et `tasks.md` dans le répertoire de configuration de l'utilisateur et reste en arrière-plan. Un clic principal sur l'icône de la zone de notification ouvre le panneau des tâches ou lui redonne le focus s'il est déjà ouvert. Un clic secondaire ouvre le menu du tray, qui donne accès au panneau, aux paramètres et à « Quitter ». Dans les paramètres, saisir un chemin absolu pour utiliser un fichier Markdown existant ou créer un nouveau fichier. La saisie d'un chemin se fait au clavier.
+
+`Ctrl+Shift+Espace` (ou « Capture rapide » dans le tray) ouvre la saisie : saisir un titre et appuyer sur Entrée pour l'enregistrer, ou Échap pour annuler. Un titre vide n'est pas enregistré ; une erreur d'écriture laisse le texte dans la capture pour une nouvelle tentative. `Ctrl+Shift+T` (ou « Ouvrir / masquer le panneau » dans le tray) affiche ou masque les tâches actives. Dans le panneau, ↑ et ↓ déplacent la sélection et Échap ferme la fenêtre. Une tâche avec seulement un titre ne demande aucun classement préalable.
 
 Sur Wayland, les raccourcis passent par **XDG Global Shortcuts** : le portail du bureau peut demander une autorisation ou refuser une combinaison ; les paramètres indiquent alors son état. L'icône de tray Linux utilise StatusNotifierItem (KSNI) et requiert un bureau qui l'affiche. Pour conserver le démarrage automatique après le développement, lancer un binaire installé à un emplacement stable plutôt que `target/debug/mystline`.
 
