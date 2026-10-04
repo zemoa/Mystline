@@ -234,7 +234,7 @@ L’application n’interprète pas automatiquement le langage naturel.
 
 Les modifications de métadonnées utilisent une syntaxe explicite.
 
-Exemples envisagés :
+Syntaxe de capture et d'édition :
 
 `#mission`
 
@@ -266,7 +266,9 @@ Prévu : jeudi
 Deadline : vendredi
 Tag : mission
 
-La syntaxe exacte pourra être ajustée lors de la conception détaillée, mais le principe `/commande valeur` doit être conservé.
+Les dates admises sont `YYYY-MM-DD`, `aujourd'hui`, `demain` et les jours de semaine français. Un jour de semaine désigne sa prochaine occurrence, aujourd'hui compris ; `demain` suit le calendrier, week-end compris. Chaque commande `/p` ou `/d` ne peut apparaître qu'une fois dans une saisie. Une commande sans date valide ou une saisie sans titre est refusée en conservant le texte et sans écrire dans le fichier.
+
+Un token littéral peut être échappé : `\#mission` conserve `#mission` dans le titre, `\/p vendredi` conserve `/p vendredi`. Un antislash littéral s'écrit `\\`. L'édition réaffiche les dates en `YYYY-MM-DD` et échappe les tokens du titre pour ne pas les transformer en métadonnées. Les règles détaillées figurent dans [F2](features/F2-organiser-et-retrouver-ses-taches.md).
 
 ---
 
@@ -474,7 +476,7 @@ Les interactions suivantes doivent notamment être possibles au clavier :
 * filtrer par tag ;
 * afficher l’aide.
 
-Les touches précises seront déterminées lors de la conception de l’interface.
+Pour l'organisation F2 : ↑/↓ sélectionnent une tâche, Entrée l'édite, `Ctrl+F` recherche, Tab/Maj+Tab puis Entrée activent un tag et `Ctrl+↑`/`Ctrl+↓` réordonnent. F1 ouvre l'aide dans la capture ou l'édition. Échap ferme d'abord l'aide, l'édition ou la recherche active avant le panneau. Les commandes de complétion et d'historique restent définies par F3.
 
 ---
 

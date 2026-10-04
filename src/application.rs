@@ -1,34 +1,127 @@
 use crate::{
-    domain::Task,
+    domain::{Task, same_tag, valid_tag},
     repository::{RepositoryError, Snapshot, TaskRepository},
 };
+use chrono::NaiveDate;
 use thiserror::Error;
+
+/// Données métier uniquement : la syntaxe des commandes appartient à la présentation.
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct TaskInput {
+    pub title: String,
+    pub planned: Option<NaiveDate>,
+    pub deadline: Option<NaiveDate>,
+    pub tags: Vec<String>,
+}
 
 #[derive(Debug, Error)]
 pub enum CreateTaskError {
     #[error("le titre de la tâche est vide")]
     EmptyTitle,
+    #[error("tag invalide : {0}")]
+    InvalidTag(String),
+    #[error("la tâche sélectionnée n'est plus modifiable")]
+    InvalidPosition,
     #[error("impossible d'enregistrer la tâche : {0}")]
     Repository(#[from] RepositoryError),
 }
 
 pub fn create_task(repo: &mut TaskRepository, title: &str) -> Result<Snapshot, CreateTaskError> {
-    let title = title.trim();
-    if title.is_empty() {
+    create_task_from_input(
+        repo,
+        &TaskInput {
+            title: title.into(),
+            ..TaskInput::default()
+        },
+    )
+}
+
+fn validate(input: &TaskInput) -> Result<TaskInput, CreateTaskError> {
+    let mut input = input.clone();
+    input.title = input.title.trim().to_owned();
+    if input.title.is_empty() {
         return Err(CreateTaskError::EmptyTitle);
     }
+    let mut tags: Vec<String> = Vec::new();
+    for tag in input.tags {
+        if !valid_tag(&tag) {
+            return Err(CreateTaskError::InvalidTag(tag));
+        }
+        if !tags.iter().any(|old| same_tag(old, &tag)) {
+            tags.push(tag);
+        }
+    }
+    input.tags = tags;
+    Ok(input)
+}
 
+pub fn create_task_from_input(
+    repo: &mut TaskRepository,
+    input: &TaskInput,
+) -> Result<Snapshot, CreateTaskError> {
+    let input = validate(input)?;
     let mut snapshot = repo.snapshot();
     snapshot.tasks.push(Task {
-        title: title.to_owned(),
-        planned: None,
-        deadline: None,
-        tags: Vec::new(),
+        title: input.title,
+        planned: input.planned,
+        deadline: input.deadline,
+        tags: input.tags,
         completed: false,
         completed_date: None,
         observed_completion: None,
     });
     Ok(repo.commit(snapshot.revision, snapshot.tasks)?)
+}
+
+pub fn update_task(
+    repo: &mut TaskRepository,
+    revision: u64,
+    position: usize,
+    input: &TaskInput,
+) -> Result<Snapshot, CreateTaskError> {
+    let input = validate(input)?;
+    let mut snapshot = repo.snapshot();
+    if snapshot.revision != revision {
+        return Err(RepositoryError::Stale.into());
+    }
+    let task = snapshot
+        .tasks
+        .get_mut(position)
+        .filter(|task| !task.completed)
+        .ok_or(CreateTaskError::InvalidPosition)?;
+    task.title = input.title;
+    task.planned = input.planned;
+    task.deadline = input.deadline;
+    task.tags = input.tags;
+    Ok(repo.commit(revision, snapshot.tasks)?)
+}
+
+/// La présentation fournit deux voisins visibles de la même section.
+/// Une permutation laisse toutes les autres lignes à leur position exacte.
+pub fn reorder_tasks(
+    repo: &mut TaskRepository,
+    revision: u64,
+    from: usize,
+    to: usize,
+) -> Result<Snapshot, CreateTaskError> {
+    let mut snapshot = repo.snapshot();
+    if snapshot.revision != revision {
+        return Err(RepositoryError::Stale.into());
+    }
+    for position in [from, to] {
+        if snapshot
+            .tasks
+            .get(position)
+            .is_none_or(|task| task.completed)
+        {
+            return Err(CreateTaskError::InvalidPosition);
+        }
+    }
+    if from == to {
+        return Ok(snapshot);
+    }
+    snapshot.tasks.swap(from, to);
+    Ok(repo.commit(revision, snapshot.tasks)?)
 }
 
 #[cfg(test)]

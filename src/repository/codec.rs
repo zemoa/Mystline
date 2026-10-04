@@ -1,4 +1,4 @@
-use crate::domain::Task;
+use crate::domain::{Task, same_tag, valid_tag};
 use chrono::NaiveDate;
 use thiserror::Error;
 
@@ -69,14 +69,12 @@ fn parse_line(line: &str, number: usize, today: NaiveDate) -> Result<Task, Codec
             title.push_str(&decode_title_token(token, escaped_title));
             previous_was_title = true;
         } else if let Some(tag) = token.strip_prefix('#') {
-            if tag.is_empty()
-                || !tag
-                    .chars()
-                    .all(|c| c.is_alphanumeric() || c == '-' || c == '_')
-            {
+            if !valid_tag(tag) {
                 return Err(fail("tag invalide"));
             }
-            tags.push(tag.to_owned());
+            if !tags.iter().any(|old: &String| same_tag(old, tag)) {
+                tags.push(tag.to_owned());
+            }
             previous_was_title = false;
         } else if token.starts_with('@') {
             let (slot, raw) = if let Some(raw) = token

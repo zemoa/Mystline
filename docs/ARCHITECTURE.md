@@ -429,6 +429,10 @@ Le domaine ne connaît pas :
 - `/d` ;
 - `#tag` en tant que syntaxe de saisie.
 
+L'implémentation F2 regroupe le parseur dans `presentation::input` et les projections dans `presentation::panel`. `parse_input(text, today)` reçoit une date locale explicite, évaluée lors de la validation ; `format_edit(task)` réaffiche les dates absolues et échappe les tokens littéraux du titre. Ces fonctions sont testables sans fenêtre ni horloge système. L'égalité des tags sans casse et leur grammaire appartiennent au domaine et sont partagées avec le codec Markdown.
+
+L'entrée structurée `application::TaskInput` contient `title`, `planned`, `deadline` et `tags`. `create_task_from_input` crée une tâche ; `update_task` remplace ces quatre données sans modifier son état ; `reorder_tasks` permute deux positions. L'action `create_task` par titre littéral est conservée. Les actions portant sur une tâche existante reçoivent la révision du snapshot et ses positions physiques, puis passent par le commit atomique du repository. La présentation choisit les voisins visibles dans la même section ; le repository ne connaît ni section ni filtre.
+
 ---
 
 ## 9. Architecture UI Iced
@@ -465,6 +469,12 @@ App
 ```
 
 La racine Iced coordonne ces modules.
+
+F2 utilise un état de panneau pour la date locale, la recherche, le tag actif et l'édition. Une édition mémorise la révision et la position du snapshot à son ouverture. Un changement de révision ou de fichier source l'invalide en conservant son brouillon ; elle doit être annulée puis rouverte depuis la liste actualisée. Les erreurs de validation et d'écriture restent affichées dans leur surface.
+
+Les lignes visibles sont une projection du snapshot, chacune associée à sa position physique et à une seule section. La navigation parcourt ces lignes ; une permutation suit la tâche déplacée, et une recherche ou un changement de jour conserve la sélection si elle reste visible. Les tags possèdent des boutons avec focus natif, activation par Entrée/Espace et contour visible, ajoutés par un composant Iced local. Tab est limité aux contrôles du panneau lorsque plusieurs surfaces sont ouvertes ; une touche déjà traitée par un champ ou un bouton ne déclenche pas une seconde action de liste.
+
+Un abonnement asynchrone calcule le prochain début de journée locale et attend ce seul instant avec Tokio. Il émet ensuite la nouvelle date et réarme son délai. Le calcul accepte un minuit ambigu ou inexistant ; la date est également revérifiée à l'ouverture et au retour du focus du panneau. Le changement de jour recalcule uniquement la projection, sans lecture périodique ni écriture du fichier.
 
 Exemple :
 
