@@ -648,6 +648,8 @@ Conceptuellement, le panneau pourrait ressembler à ceci :
 
 La totalité de cette vue doit rester compacte et immédiatement lisible.
 
+La [maquette visuelle](mockup.png) constitue la référence de direction graphique : surface claire, hiérarchie typographique nette, contrôles compacts, tags en pastilles et actions immédiatement identifiables. Elle ne remplace pas les règles fonctionnelles de cette spécification : le panneau conserve notamment ses quatre sections et l'édition par commandes explicites.
+
 ---
 
 # 27. Principe directeur du MVP

@@ -1,10 +1,13 @@
 use crate::desktop::{self, Event};
+mod design;
+mod icons;
 mod keyboard_button;
 mod task_store;
 use chrono::{Local, NaiveDate};
+use design::ButtonKind;
 use futures::{SinkExt, StreamExt, channel::mpsc::UnboundedReceiver};
 use iced::{
-    Element, Rectangle, Subscription, Task, Vector,
+    Alignment, Element, Length, Rectangle, Subscription, Task, Vector,
     advanced::widget::{
         self,
         operation::{self, Outcome},
@@ -15,6 +18,7 @@ use iced::{
     },
     window,
 };
+use icons::Icon;
 use keyboard_button::keyboard_button;
 use mystline::{
     application::TaskCommand,
@@ -535,10 +539,15 @@ impl widget::Operation<Message> for PanelTab {
 fn panel_tab(state: &State, previous: bool) -> Task<Message> {
     let mut ids = Vec::new();
     if state.panel_view.editor.is_some() {
+        ids.push(widget::Id::new("panel-back"));
         ids.push(widget::Id::new("panel-edit"));
+        ids.push(widget::Id::new("panel-save"));
+        ids.push(widget::Id::new("panel-close"));
     } else {
         ids.push(widget::Id::new("panel-history"));
         ids.push(widget::Id::new("panel-find"));
+        ids.push(widget::Id::new("panel-settings"));
+        ids.push(widget::Id::new("panel-close"));
         if state.panel_view.search_active || !state.panel_view.query.is_empty() {
             ids.push(widget::Id::new("panel-search"));
         }
@@ -556,6 +565,14 @@ fn panel_tab(state: &State, previous: bool) -> Task<Message> {
         focused: None,
         previous,
     })
+}
+
+fn move_focus(previous: bool) -> Task<Message> {
+    if previous {
+        widget::operate(operation::focusable::focus_previous())
+    } else {
+        widget::operate(operation::focusable::focus_next())
+    }
 }
 
 struct TextFocus {
@@ -651,6 +668,11 @@ pub fn run(
         view,
     )
     .title(|_: &State, _: window::Id| "Mystline".to_owned())
+    .theme(|_: &State, _: window::Id| design::theme())
+    .style(|_, _| iced::theme::Style {
+        background_color: design::SURFACE,
+        text_color: design::TEXT,
+    })
     .subscription(move |_| subscriptions(wayland))
     .run()?;
     Ok(())
@@ -730,17 +752,7 @@ fn open(state: &mut State, surface: Surface) -> Task<Message> {
             .navigation
             .open(state.panel_view.indices(&state.tasks.snapshot).len());
     }
-    let settings = window::Settings {
-        size: match surface {
-            Surface::Capture => iced::Size::new(430.0, 125.0),
-            Surface::Panel => iced::Size::new(430.0, 550.0),
-            Surface::Settings => iced::Size::new(540.0, 320.0),
-        },
-        exit_on_close_request: false,
-        decorations: surface == Surface::Settings,
-        ..window::Settings::default()
-    };
-    let (id, task) = window::open(settings);
+    let (id, task) = window::open(surface_settings(surface));
     window_transition(
         match surface {
             Surface::Capture => &mut state.capture,
@@ -752,22 +764,65 @@ fn open(state: &mut State, surface: Surface) -> Task<Message> {
     task.map(move |id| Message::Opened(surface, id))
 }
 
+fn surface_settings(surface: Surface) -> window::Settings {
+    window::Settings {
+        size: match surface {
+            Surface::Capture => iced::Size::new(430.0, 130.0),
+            Surface::Panel => iced::Size::new(460.0, 680.0),
+            Surface::Settings => iced::Size::new(560.0, 430.0),
+        },
+        exit_on_close_request: false,
+        decorations: surface == Surface::Settings,
+        transparent: false,
+        position: window::Position::Centered,
+        resizable: false,
+        minimizable: surface == Surface::Settings,
+        ..window::Settings::default()
+    }
+}
+
 fn capture_focus(id: window::Id) -> Task<Message> {
     window::gain_focus(id).chain(iced::widget::operation::focus("capture-title"))
 }
 
-fn capture_size(state: &State, id: window::Id) -> Task<Message> {
-    let height = 125.0
-        + if state.quick_capture.help { 190.0 } else { 0.0 }
-        + if state.quick_capture.error.is_some() {
-            90.0
-        } else {
-            0.0
-        };
-    window::resize(id, iced::Size::new(430.0, height))
+fn capture_height(capture: &QuickCapture) -> f32 {
+    130.0
+        + if capture.help { 300.0 } else { 0.0 }
+        + if capture.error.is_some() { 90.0 } else { 0.0 }
+}
+
+fn reopen_capture(state: &mut State, id: window::Id) -> Task<Message> {
+    if !window_transition(&mut state.capture, WindowTransition::Close(id)) {
+        return Task::none();
+    }
+    let close = window::close(id);
+    let mut settings = surface_settings(Surface::Capture);
+    settings.size.height = capture_height(&state.quick_capture);
+    let (new_id, open) = window::open(settings);
+    window_transition(&mut state.capture, WindowTransition::Reserve(new_id));
+    if let Some(PendingWrite::Capture { id: pending, .. }) = &mut state.pending_write
+        && *pending == id
+    {
+        *pending = new_id;
+    }
+    close.chain(open.map(move |opened| Message::Opened(Surface::Capture, opened)))
+}
+
+fn reset_panel_surface(panel: &mut PanelState, navigation: &mut PanelNavigation) {
+    panel.mode = PanelMode::Daily;
+    panel.query.clear();
+    panel.search_active = false;
+    panel.tag = None;
+    panel.editor = None;
+    panel.error = None;
+    navigation.selected = None;
+    navigation.focused = false;
 }
 
 fn close(state: &mut State, id: window::Id) -> Task<Message> {
+    if state.panel == Some(id) {
+        reset_panel_surface(&mut state.panel_view, &mut state.navigation);
+    }
     for slot in [&mut state.capture, &mut state.panel, &mut state.settings] {
         if window_transition(slot, WindowTransition::Close(id)) {
             return window::close(id);
@@ -834,7 +889,7 @@ fn repository_finished(state: &mut State, result: JobResult) -> Task<Message> {
                     effect = close(state, id);
                 } else if let Some(error) = &result.error {
                     if state.capture == Some(id) {
-                        effect = capture_size(state, id).chain(capture_focus(id));
+                        effect = reopen_capture(state, id);
                     } else {
                         state.panel_view.error =
                             Some(format!("{error}\nTexte non enregistré : {draft}"));
@@ -935,13 +990,16 @@ fn update(state: &mut State, message: Message) -> Task<Message> {
             if state.capture == Some(id) {
                 match key {
                     PanelKey::Help => state.quick_capture.help = !state.quick_capture.help,
+                    PanelKey::Tab(previous) => {
+                        return move_focus(previous);
+                    }
                     PanelKey::Escape if state.quick_capture.help => {
                         state.quick_capture.help = false
                     }
                     PanelKey::Escape => return close(state, id),
                     _ => return Task::none(),
                 }
-                return capture_size(state, id).chain(capture_focus(id));
+                return reopen_capture(state, id);
             }
             if state.panel == Some(id) {
                 return widget::operate(TextFocus {
@@ -949,6 +1007,13 @@ fn update(state: &mut State, message: Message) -> Task<Message> {
                     key,
                     focused: false,
                 });
+            }
+            if state.settings == Some(id) {
+                return match key {
+                    PanelKey::Tab(previous) => move_focus(previous),
+                    PanelKey::Escape => close(state, id),
+                    _ => Task::none(),
+                };
             }
             if key == PanelKey::Escape {
                 return close(state, id);
@@ -1158,7 +1223,7 @@ fn update(state: &mut State, message: Message) -> Task<Message> {
             let had_error = state.quick_capture.error.is_some();
             state.quick_capture.edit(draft);
             if had_error {
-                capture_size(state, id)
+                reopen_capture(state, id)
             } else {
                 Task::none()
             }
@@ -1185,7 +1250,7 @@ fn update(state: &mut State, message: Message) -> Task<Message> {
                     reveal_selected(),
                 ])
             } else {
-                capture_size(state, id)
+                reopen_capture(state, id)
             }
         }
         Message::CaptureChanged(..) | Message::CaptureSubmitted(..) => Task::none(),
@@ -1269,55 +1334,199 @@ fn update(state: &mut State, message: Message) -> Task<Message> {
     }
 }
 
+fn icon_action<'a>(
+    id: impl Into<widget::Id>,
+    icon: Icon,
+    message: Message,
+) -> Element<'a, Message> {
+    keyboard_button(
+        id,
+        icons::icon(icon, 19.0, design::MUTED),
+        message,
+        ButtonKind::Ghost,
+    )
+}
+
+fn floating_frame(content: Element<'_, Message>) -> Element<'_, Message> {
+    container(content)
+        .padding(design::SPACE_4)
+        .width(Length::Fill)
+        .height(Length::Fill)
+        .style(design::card)
+        .into()
+}
+
+fn settings_view(state: &State, id: window::Id) -> Element<'_, Message> {
+    let (capture_active, panel_active) = state.shortcut_status;
+    let header = row![
+        text("Paramètres").size(24).width(Length::Fill),
+        icon_action("settings-close", Icon::Close, Message::Close(id)),
+    ]
+    .align_y(Alignment::Center);
+
+    let startup = container(
+        column![
+            text("Démarrage").size(16),
+            checkbox(state.config.autostart)
+                .label("Démarrer Mystline avec la session")
+                .on_toggle(Message::Autostart)
+                .style(design::checkbox)
+                .size(20),
+        ]
+        .spacing(design::SPACE_2),
+    )
+    .padding(design::SPACE_3)
+    .width(Length::Fill)
+    .style(design::panel);
+
+    let path_actions = row![
+        keyboard_button(
+            "settings-use-file",
+            text("Utiliser ce fichier").size(14),
+            Message::SetSource(false),
+            ButtonKind::Primary,
+        ),
+        keyboard_button(
+            "settings-create-file",
+            text("Créer un fichier").size(14),
+            Message::SetSource(true),
+            ButtonKind::Secondary,
+        ),
+    ]
+    .spacing(design::SPACE_1);
+    let source = container(
+        column![
+            text("Fichier de tâches").size(16),
+            text_input("/chemin/vers/tasks.md", &state.draft_path)
+                .id("settings-path")
+                .on_input(Message::PathChanged)
+                .padding(12)
+                .style(design::input),
+            path_actions,
+        ]
+        .spacing(design::SPACE_2),
+    )
+    .padding(design::SPACE_3)
+    .width(Length::Fill)
+    .style(design::panel);
+
+    let shortcuts = container(
+        column![
+            text("Raccourcis globaux").size(16),
+            row![
+                text("Capture rapide").width(Length::Fill),
+                text(if capture_active { "Actif" } else { "Inactif" })
+                    .size(13)
+                    .color(if capture_active {
+                        design::PRIMARY
+                    } else {
+                        design::DANGER
+                    }),
+            ],
+            row![
+                text("Ouvrir le panneau").width(Length::Fill),
+                text(if panel_active { "Actif" } else { "Inactif" })
+                    .size(13)
+                    .color(if panel_active {
+                        design::PRIMARY
+                    } else {
+                        design::DANGER
+                    }),
+            ],
+        ]
+        .spacing(design::SPACE_1),
+    )
+    .padding(design::SPACE_3)
+    .width(Length::Fill)
+    .style(design::panel);
+
+    let mut content = column![header, startup, source, shortcuts].spacing(design::SPACE_2);
+    if let Some(error) = &state.error {
+        content = content.push(
+            container(text(error).size(13))
+                .padding(design::SPACE_2)
+                .width(Length::Fill)
+                .style(design::callout_danger),
+        );
+    }
+    container(
+        scrollable(content)
+            .height(Length::Fill)
+            .style(design::scrollable),
+    )
+    .padding(design::SPACE_4)
+    .width(Length::Fill)
+    .height(Length::Fill)
+    .style(|_| container::Style::default().background(design::BACKGROUND))
+    .into()
+}
+
 fn view(state: &State, id: window::Id) -> Element<'_, Message> {
-    let content: Element<'_, Message> = if state.capture == Some(id) {
-        let mut capture = column![
-            text("Capture rapide"),
-            text_input("Titre de la tâche", &state.quick_capture.draft)
+    if state.capture == Some(id) {
+        let input = row![
+            text_input("Que devez-vous faire ?", &state.quick_capture.draft)
                 .id("capture-title")
                 .on_input(move |draft| Message::CaptureChanged(id, draft))
-                .on_submit(Message::CaptureSubmitted(id)),
+                .on_submit(Message::CaptureSubmitted(id))
+                .padding(12)
+                .size(17)
+                .style(design::input)
+                .width(Length::Fill),
+            icon_action("capture-close", Icon::Close, Message::Close(id)),
         ]
-        .spacing(12);
-        capture = capture.push(text("Entrée : ajouter · F1 : aide · Échap : fermer").size(12));
+        .spacing(design::SPACE_1)
+        .align_y(Alignment::Center);
+        let helper = row![
+            text("Entrée pour ajouter  ·  Échap pour fermer")
+                .size(12)
+                .color(design::MUTED)
+                .width(Length::Fill),
+            keyboard_button(
+                "capture-help",
+                text(if state.quick_capture.help {
+                    "Fermer l’aide (F1)"
+                } else {
+                    "Aide (F1)"
+                })
+                .size(12),
+                Message::Key(id, PanelKey::Help),
+                ButtonKind::Ghost,
+            ),
+        ]
+        .align_y(Alignment::Center);
+        let mut capture = column![input, helper,].spacing(design::SPACE_2);
         if state.quick_capture.help {
-            capture = capture.push(text(HELP).size(13));
+            capture = capture.push(
+                container(
+                    scrollable(text(HELP).size(13).color(design::TEXT).width(Length::Fill))
+                        .height(220)
+                        .style(design::scrollable),
+                )
+                .padding(design::SPACE_2)
+                .width(Length::Fill)
+                .style(design::callout_help),
+            );
         }
         if let Some(error) = &state.quick_capture.error {
-            capture = capture.push(scrollable(text(error)).height(75));
+            capture = capture.push(
+                container(
+                    scrollable(text(error).size(13))
+                        .height(48)
+                        .style(design::scrollable),
+                )
+                .padding(design::SPACE_2)
+                .width(Length::Fill)
+                .style(design::callout_danger),
+            );
         }
-        capture.into()
+        floating_frame(capture.into())
     } else if state.panel == Some(id) {
-        panel_view(state, id)
+        floating_frame(panel_view(state, id))
     } else if state.settings == Some(id) {
-        let (capture, panel) = state.shortcut_status;
-        column![
-            text("Paramètres"),
-            checkbox(state.config.autostart)
-                .label("Démarrer avec la session")
-                .on_toggle(Message::Autostart),
-            text("Fichier de tâches :"),
-            text_input("/chemin/vers/tasks.md", &state.draft_path).on_input(Message::PathChanged),
-            button("Utiliser le fichier existant").on_press(Message::SetSource(false)),
-            button("Créer un nouveau fichier").on_press(Message::SetSource(true)),
-            text(format!(
-                "Raccourcis : capture {} ; panneau {}",
-                if capture { "actif" } else { "inactif" },
-                if panel { "actif" } else { "inactif" }
-            )),
-        ]
-        .spacing(12)
-        .into()
+        settings_view(state, id)
     } else {
         text("Mystline").into()
-    };
-    let mut frame = column![content].spacing(10);
-    if let Some(error) = &state.error
-        && state.settings == Some(id)
-    {
-        frame = frame.push(text(error));
     }
-    container(frame).padding(20).into()
 }
 
 fn panel_view(state: &State, id: window::Id) -> Element<'_, Message> {
@@ -1338,174 +1547,345 @@ fn panel_content<'a>(
     id: window::Id,
 ) -> Element<'a, Message> {
     if let Some(editor) = &panel.editor {
+        let header = row![
+            keyboard_button(
+                "panel-back",
+                icons::icon(Icon::Back, 19.0, design::MUTED),
+                Message::PanelKey(id, PanelKey::Escape, false),
+                ButtonKind::Ghost,
+            ),
+            text("Modifier la tâche").size(22).width(Length::Fill),
+            icon_action("panel-close", Icon::Close, Message::Close(id)),
+        ]
+        .spacing(design::SPACE_1)
+        .align_y(Alignment::Center);
         let mut form = column![
-            text("Modifier la tâche").size(22),
+            text("Titre et organisation").size(14).color(design::MUTED),
             text_input("Titre /p date /d date #tag", &editor.draft)
                 .id("panel-edit")
                 .on_input(move |draft| Message::EditChanged(id, draft))
-                .on_submit(Message::EditSubmitted(id)),
-            text("Entrée : enregistrer · Échap : annuler · F1 : aide").size(12),
+                .on_submit(Message::EditSubmitted(id))
+                .padding(14)
+                .size(16)
+                .style(design::input),
+            text("Entrée pour enregistrer  ·  Échap pour annuler  ·  F1 pour l’aide")
+                .size(12)
+                .color(design::MUTED),
         ]
-        .spacing(12);
+        .spacing(design::SPACE_2);
         if editor.help {
-            form = form.push(text(HELP).size(13));
+            form = form.push(
+                container(text(HELP).size(13))
+                    .padding(design::SPACE_2)
+                    .width(Length::Fill)
+                    .style(design::callout_help),
+            );
         }
         if let Some(error) = &editor.error {
-            form = form.push(text(error).color(iced::Color::from_rgb8(180, 45, 45)));
+            form = form.push(
+                container(text(error).size(13))
+                    .padding(design::SPACE_2)
+                    .width(Length::Fill)
+                    .style(design::callout_danger),
+            );
         }
-        return scrollable(form).into();
+        let footer = row![
+            text("Les dates existantes restent au format AAAA-MM-JJ")
+                .size(11)
+                .color(design::MUTED)
+                .width(Length::Fill),
+            keyboard_button(
+                "panel-save",
+                text("Enregistrer").size(14),
+                Message::EditSubmitted(id),
+                ButtonKind::Primary,
+            ),
+        ]
+        .spacing(design::SPACE_2)
+        .align_y(Alignment::Center);
+        return column![
+            header,
+            scrollable(form)
+                .height(Length::Fill)
+                .style(design::scrollable),
+            footer,
+        ]
+        .spacing(design::SPACE_3)
+        .into();
     }
     let rows = panel.rows(snapshot);
     let selected = navigation.selected_index(&rows.iter().map(|row| row.index).collect::<Vec<_>>());
-    let mut header = column![
+    let history_button = keyboard_button(
+        "panel-history",
         row![
-            text(if panel.mode == PanelMode::History {
-                "Historique"
-            } else {
-                "Mes tâches"
-            })
-            .size(24),
-            keyboard_button(
-                "panel-history",
+            icons::icon(
                 if panel.mode == PanelMode::History {
-                    "Retour"
+                    Icon::Back
                 } else {
-                    "Historique"
-                }
-                .into(),
-                Message::ToggleHistory(id)
+                    Icon::History
+                },
+                17.0,
+                design::MUTED,
             ),
-            keyboard_button(
-                "panel-find",
-                "Rechercher".into(),
-                Message::Key(id, PanelKey::Search)
-            ),
+            text(if panel.mode == PanelMode::History {
+                "Retour"
+            } else {
+                "Historique"
+            })
         ]
-        .spacing(10)
-        .wrap()
+        .spacing(6)
+        .align_y(Alignment::Center),
+        Message::ToggleHistory(id),
+        ButtonKind::Secondary,
+    );
+    let title = text(if panel.mode == PanelMode::History {
+        "Historique"
+    } else {
+        "Mes tâches"
+    })
+    .size(24)
+    .width(Length::Fill);
+    let actions = row![
+        icon_action(
+            "panel-find",
+            Icon::Search,
+            Message::Key(id, PanelKey::Search),
+        ),
+        icon_action(
+            "panel-settings",
+            Icon::Settings,
+            Message::Desktop(Event::Settings),
+        ),
+        icon_action("panel-close", Icon::Close, Message::Close(id)),
     ]
-    .spacing(10);
+    .spacing(2)
+    .align_y(Alignment::Center);
+    let mut header = column![
+        row![title, actions].align_y(Alignment::Center),
+        history_button,
+    ]
+    .spacing(design::SPACE_2);
     if panel.search_active || !panel.query.is_empty() {
         header = header.push(
             text_input("Rechercher un titre ou un tag", &panel.query)
                 .id("panel-search")
                 .on_input(move |query| Message::SearchChanged(id, query))
-                .on_submit(Message::SearchLeave(id)),
+                .on_submit(Message::SearchLeave(id))
+                .padding(12)
+                .style(design::input),
         );
     }
     if let Some(tag) = &panel.tag {
         header = header.push(keyboard_button(
             "panel-clear-tag",
-            format!("#{tag} · Retirer le filtre"),
+            text(format!("#{tag}  ×")).size(13),
             Message::FilterTag(id, None),
+            ButtonKind::Tag(design::tag_tone(tag)),
         ));
     }
     if let Some(error) = &panel.error {
-        header = header.push(text(error).color(iced::Color::from_rgb8(180, 45, 45)));
+        header = header.push(
+            container(text(error).size(13))
+                .padding(design::SPACE_2)
+                .width(Length::Fill)
+                .style(design::callout_danger),
+        );
     }
-    let mut list = column![].spacing(14);
+    let mut list = column![].spacing(design::SPACE_1);
     let sections: &[Section] = if panel.mode == PanelMode::History {
         &[Section::All]
     } else {
         &Section::ALL
     };
     for &section in sections {
-        let mut section_title = text(if panel.mode == PanelMode::History {
-            "Tâches terminées"
-        } else {
-            section.label()
-        })
-        .size(18);
-        if section == Section::Overdue {
-            section_title = section_title.color(iced::Color::from_rgb8(180, 45, 45));
+        let section_rows: Vec<_> = rows
+            .iter()
+            .filter(|entry| entry.section == section)
+            .collect();
+        if section_rows.is_empty() {
+            continue;
         }
-        list = list.push(section_title);
-        let mut count = 0;
-        for entry in rows.iter().filter(|entry| entry.section == section) {
-            count += 1;
+        let title_color = if section == Section::Overdue {
+            design::DANGER
+        } else {
+            design::TEXT
+        };
+        list = list.push(
+            row![
+                text(if panel.mode == PanelMode::History {
+                    "Tâches terminées"
+                } else {
+                    section.label()
+                })
+                .size(16)
+                .color(title_color),
+                container(text(""))
+                    .height(1)
+                    .width(Length::Fill)
+                    .style(design::section_rule),
+            ]
+            .spacing(design::SPACE_1)
+            .align_y(Alignment::Center),
+        );
+        for entry in section_rows {
             let task = &snapshot.tasks[entry.index];
             let index = entry.index;
-            let marker = if selected == Some(index) { "▸" } else { " " };
             let mut completion = checkbox(task.completed);
             if !task.completed && panel.mode == PanelMode::Daily {
                 completion =
                     completion.on_toggle(move |_| Message::CompleteTask(id, source, index));
             }
+            completion = completion.size(20).style(design::checkbox);
             let title = rich_text![
-                span::<(), _>(format!("{marker} {}", task.title)).strikethrough(task.completed)
+                span::<(), _>(&task.title)
+                    .color(if task.completed {
+                        design::MUTED
+                    } else {
+                        design::TEXT
+                    })
+                    .strikethrough(task.completed)
             ];
             let mut content = column![
                 row![
                     container(completion).id(format!("panel-complete-{index}")),
                     button(title)
-                        .style(button::text)
+                        .padding(0)
+                        .style(|_, status| design::button(ButtonKind::Ghost, status))
                         .width(iced::Length::Fill)
                         .on_press(Message::SelectTask(id, index))
                 ]
-                .spacing(8)
+                .spacing(design::SPACE_2)
+                .align_y(Alignment::Center)
             ]
-            .spacing(5);
+            .spacing(design::SPACE_1);
             if !task.tags.is_empty() {
-                let mut tags = iced::widget::Row::new().spacing(5);
+                let mut tags = iced::widget::Row::new().spacing(6);
                 for (position, tag) in task.tags.iter().enumerate() {
                     tags = tags.push(keyboard_button(
                         format!("panel-tag-{index}-{position}"),
-                        format!("#{tag}"),
+                        text(format!("#{tag}")).size(12),
                         Message::FilterTag(id, Some(tag.clone())),
+                        ButtonKind::Tag(design::tag_tone(tag)),
                     ));
                 }
-                content = content.push(tags.wrap());
+                content = content.push(container(tags.wrap()).padding(iced::Padding {
+                    left: 32.0,
+                    ..iced::Padding::ZERO
+                }));
             }
             if let Some(date) = task.planned {
-                content = content.push(text(format!("Prévu : {date}")).size(12));
+                content = content.push(
+                    container(
+                        row![
+                            icons::icon(Icon::Calendar, 14.0, design::MUTED),
+                            text(format!("Prévu : {date}"))
+                                .size(12)
+                                .color(design::MUTED),
+                        ]
+                        .spacing(6)
+                        .align_y(Alignment::Center),
+                    )
+                    .padding(iced::Padding {
+                        left: 32.0,
+                        ..iced::Padding::ZERO
+                    }),
+                );
             }
             if let Some(date) = task.deadline {
-                let mut label = text(format!("Échéance : {date}")).size(12);
-                match task_deadline_tone(task, panel.today) {
-                    Some(DeadlineTone::Overdue) => {
-                        label = label.color(iced::Color::from_rgb8(180, 45, 45))
-                    }
-                    Some(DeadlineTone::Today) => {
-                        label = label.color(iced::Color::from_rgb8(160, 95, 15)).size(14)
-                    }
-                    _ => (),
-                }
-                content = content.push(label);
+                let tone = task_deadline_tone(task, panel.today);
+                let color = match tone {
+                    Some(DeadlineTone::Overdue) => design::DANGER,
+                    Some(DeadlineTone::Today) => design::WARNING,
+                    _ => design::MUTED,
+                };
+                content = content.push(
+                    container(
+                        row![
+                            icons::icon(Icon::Deadline, 14.0, color),
+                            text(format!("Échéance : {date}")).size(12).color(color),
+                        ]
+                        .spacing(6)
+                        .align_y(Alignment::Center),
+                    )
+                    .padding(iced::Padding {
+                        left: 32.0,
+                        ..iced::Padding::ZERO
+                    }),
+                );
             }
             if panel.mode == PanelMode::History
                 && let Some(date) = task.effective_completion_date()
             {
-                content = content.push(text(format!("Terminée le : {date}")).size(12));
+                content = content.push(
+                    container(
+                        text(format!("Terminée le {date}"))
+                            .size(12)
+                            .color(design::MUTED),
+                    )
+                    .padding(iced::Padding {
+                        left: 32.0,
+                        ..iced::Padding::ZERO
+                    }),
+                );
             }
-            let mut item = container(content).padding(8).width(iced::Length::Fill);
-            if selected == Some(index) {
-                item = item.id("panel-selected").style(container::bordered_box);
+            let is_selected = selected == Some(index);
+            let row_content: Element<'_, Message> = if is_selected {
+                row![
+                    container(text(""))
+                        .width(3)
+                        .height(Length::Fill)
+                        .style(design::selection_rail),
+                    content,
+                ]
+                .spacing(design::SPACE_1)
+                .into()
+            } else {
+                content.into()
+            };
+            let mut item = container(row_content)
+                .padding(design::SPACE_2)
+                .width(iced::Length::Fill)
+                .style(design::panel);
+            if is_selected {
+                item = item.id("panel-selected").style(design::selected);
             }
             list = list.push(item);
         }
-        if count == 0 {
-            list = list.push(
-                text(if panel.mode == PanelMode::History {
-                    "Aucune tâche terminée"
-                } else {
-                    "Aucune tâche"
-                })
-                .size(12),
-            );
-        }
     }
-    if rows.is_empty() && (!panel.query.is_empty() || panel.tag.is_some()) {
-        list = list.push(text(
-            "Aucune tâche ne correspond à la recherche ou au filtre",
-        ));
-    }
-    column![header, scrollable(list).id("panel-list").height(iced::Length::Fill),
-        text(if panel.mode == PanelMode::History {
-            "↑ ↓ : sélectionner · Ctrl+F : rechercher · Ctrl+H / Échap : retour\nTab puis Entrée : activer un bouton ou filtrer un tag"
+    if rows.is_empty() {
+        let message = if !panel.query.is_empty() || panel.tag.is_some() {
+            "Aucune tâche ne correspond à votre recherche"
+        } else if panel.mode == PanelMode::History {
+            "Aucune tâche terminée pour le moment"
         } else {
-            "↑ ↓ : sélectionner · Espace : terminer · Entrée : éditer\nCtrl+F : rechercher · Ctrl+H : historique · Ctrl+↑ ↓ : déplacer\nTab puis Entrée : activer un bouton ou filtrer un tag"
-        }).size(11),
-    ].spacing(12).into()
+            "Tout est calme. Capturez une tâche quand elle se présente."
+        };
+        list = list.push(
+            container(
+                column![
+                    text(if panel.mode == PanelMode::History {
+                        "Historique vide"
+                    } else {
+                        "Aucune tâche"
+                    })
+                    .size(18),
+                    text(message).size(13).color(design::MUTED),
+                ]
+                .spacing(6)
+                .align_x(Alignment::Center),
+            )
+            .padding([48, 20])
+            .width(Length::Fill)
+            .style(design::panel),
+        );
+    }
+    column![header, scrollable(list).id("panel-list").height(iced::Length::Fill).style(design::scrollable),
+        text(if panel.mode == PanelMode::History {
+            "↑ ↓ sélectionner  ·  Ctrl+F rechercher  ·  Ctrl+H / Échap revenir\nTab puis Entrée activer un bouton ou filtrer un tag"
+        } else {
+            "↑ ↓ sélectionner  ·  Espace terminer  ·  Entrée éditer\nCtrl+F rechercher  ·  Ctrl+H historique  ·  Ctrl+↑ ↓ déplacer\nTab puis Entrée activer une action"
+        }).size(11).color(design::MUTED),
+    ].spacing(design::SPACE_2).into()
 }
 
 #[cfg(test)]
@@ -1529,6 +1909,198 @@ mod tests {
             if id == Some(&self.id) {
                 self.bounds = Some(bounds);
             }
+        }
+    }
+
+    #[test]
+    fn les_surfaces_utilisent_les_dimensions_compactes_du_design_system() {
+        for (surface, expected, decorated, transparent) in [
+            (
+                Surface::Capture,
+                iced::Size::new(430.0, 130.0),
+                false,
+                false,
+            ),
+            (Surface::Panel, iced::Size::new(460.0, 680.0), false, false),
+            (
+                Surface::Settings,
+                iced::Size::new(560.0, 430.0),
+                true,
+                false,
+            ),
+        ] {
+            let settings = surface_settings(surface);
+            assert_eq!(settings.size, expected);
+            assert_eq!(settings.decorations, decorated);
+            assert_eq!(settings.transparent, transparent);
+            assert!(matches!(settings.position, window::Position::Centered));
+            assert!(!settings.resizable);
+        }
+    }
+
+    #[test]
+    fn la_capture_reserve_une_zone_defilable_complete_pour_laide() {
+        let mut capture = QuickCapture::default();
+        assert_eq!(capture_height(&capture), 130.0);
+        capture.help = true;
+        assert_eq!(capture_height(&capture), 430.0);
+        capture.error = Some("Erreur".into());
+        assert_eq!(capture_height(&capture), 520.0);
+        capture.help = false;
+        assert_eq!(capture_height(&capture), 220.0);
+    }
+
+    #[test]
+    fn fermer_le_panneau_efface_les_etats_transitoires() {
+        let snapshot = Snapshot {
+            revision: 4,
+            tasks: mystline::repository::codec::parse("- [ ] Support #mission\n", f3_date(9))
+                .unwrap(),
+        };
+        let mut panel = PanelState::new(f3_date(9));
+        panel.mode = PanelMode::History;
+        panel.query = "support".into();
+        panel.search_active = true;
+        panel.tag = Some("mission".into());
+        panel.error = Some("erreur".into());
+        panel.mode = PanelMode::Daily;
+        panel.begin_edit(&snapshot, 0);
+        panel.mode = PanelMode::History;
+        let mut navigation = PanelNavigation {
+            selected: Some(0),
+            focused: true,
+        };
+
+        reset_panel_surface(&mut panel, &mut navigation);
+
+        assert_eq!(panel.mode, PanelMode::Daily);
+        assert!(panel.query.is_empty());
+        assert!(!panel.search_active);
+        assert!(panel.tag.is_none());
+        assert!(panel.editor.is_none());
+        assert!(panel.error.is_none());
+        assert!(navigation.selected.is_none());
+        assert!(!navigation.focused);
+    }
+
+    #[test]
+    fn les_actions_visuelles_du_panneau_sont_activables_au_clavier() {
+        let id = window::Id::unique();
+        let snapshot = Snapshot {
+            revision: 0,
+            tasks: vec![],
+        };
+        let panel = PanelState::new(f3_date(9));
+        let navigation = PanelNavigation::default();
+
+        for control in [
+            "panel-history",
+            "panel-find",
+            "panel-settings",
+            "panel-close",
+        ] {
+            let mut element = panel_content(
+                &panel,
+                &navigation,
+                &snapshot,
+                SourceRevision::for_test(0),
+                id,
+            );
+            let renderer = iced::Renderer::new(iced::Font::DEFAULT, iced::Pixels(16.0));
+            let mut tree = widget::Tree::new(&element);
+            let viewport = Rectangle::with_size(iced::Size::new(460.0, 680.0));
+            let node = element.as_widget_mut().layout(
+                &mut tree,
+                &renderer,
+                &iced::advanced::layout::Limits::new(iced::Size::ZERO, viewport.size()),
+            );
+            let layout = iced::advanced::Layout::new(&node);
+            operate_in_test(
+                &mut element,
+                &mut tree,
+                layout,
+                &renderer,
+                Box::new(operation::focusable::focus(widget::Id::new(control))),
+            );
+            let mut messages = Vec::new();
+            let mut shell = iced::advanced::Shell::new(&mut messages);
+            element.as_widget_mut().update(
+                &mut tree,
+                &press(keyboard::key::Named::Enter),
+                layout,
+                iced::mouse::Cursor::Unavailable,
+                &renderer,
+                &mut iced::advanced::clipboard::Null,
+                &mut shell,
+                &viewport,
+            );
+            assert!(shell.is_event_captured());
+            assert_eq!(messages.len(), 1);
+            assert!(match (control, messages.pop().unwrap()) {
+                ("panel-history", Message::ToggleHistory(window)) => window == id,
+                ("panel-find", Message::Key(window, PanelKey::Search)) => window == id,
+                ("panel-settings", Message::Desktop(Event::Settings)) => true,
+                ("panel-close", Message::Close(window)) => window == id,
+                _ => false,
+            });
+        }
+    }
+
+    #[test]
+    fn retour_enregistrement_et_fermeture_de_lediteur_sont_activables_au_clavier() {
+        let id = window::Id::unique();
+        let snapshot = Snapshot {
+            revision: 0,
+            tasks: mystline::repository::codec::parse("- [ ] Support\n", f3_date(9)).unwrap(),
+        };
+        let mut panel = PanelState::new(f3_date(9));
+        panel.begin_edit(&snapshot, 0);
+        let navigation = PanelNavigation::default();
+
+        for control in ["panel-back", "panel-save", "panel-close"] {
+            let mut element = panel_content(
+                &panel,
+                &navigation,
+                &snapshot,
+                SourceRevision::for_test(0),
+                id,
+            );
+            let renderer = iced::Renderer::new(iced::Font::DEFAULT, iced::Pixels(16.0));
+            let mut tree = widget::Tree::new(&element);
+            let viewport = Rectangle::with_size(iced::Size::new(460.0, 680.0));
+            let node = element.as_widget_mut().layout(
+                &mut tree,
+                &renderer,
+                &iced::advanced::layout::Limits::new(iced::Size::ZERO, viewport.size()),
+            );
+            let layout = iced::advanced::Layout::new(&node);
+            operate_in_test(
+                &mut element,
+                &mut tree,
+                layout,
+                &renderer,
+                Box::new(operation::focusable::focus(widget::Id::new(control))),
+            );
+            let mut messages = Vec::new();
+            let mut shell = iced::advanced::Shell::new(&mut messages);
+            element.as_widget_mut().update(
+                &mut tree,
+                &press(keyboard::key::Named::Enter),
+                layout,
+                iced::mouse::Cursor::Unavailable,
+                &renderer,
+                &mut iced::advanced::clipboard::Null,
+                &mut shell,
+                &viewport,
+            );
+            assert!(shell.is_event_captured());
+            assert_eq!(messages.len(), 1);
+            assert!(match (control, messages.pop().unwrap()) {
+                ("panel-back", Message::PanelKey(window, PanelKey::Escape, false)) => window == id,
+                ("panel-save", Message::EditSubmitted(window)) => window == id,
+                ("panel-close", Message::Close(window)) => window == id,
+                _ => false,
+            });
         }
     }
 
@@ -1977,13 +2549,15 @@ mod tests {
                 .on_input(move |draft| Message::CaptureChanged(id, draft)),
             keyboard_button(
                 "panel-tag-0-0",
-                "#Mission".into(),
-                Message::FilterTag(id, Some("Mission".into()))
+                text("#Mission"),
+                Message::FilterTag(id, Some("Mission".into())),
+                ButtonKind::Tag(0),
             ),
             keyboard_button(
                 "panel-clear-tag",
-                "Retirer le filtre".into(),
-                Message::FilterTag(id, None)
+                text("Retirer le filtre"),
+                Message::FilterTag(id, None),
+                ButtonKind::Tag(0),
             ),
         ]
         .into();
