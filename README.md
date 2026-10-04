@@ -14,7 +14,7 @@ L’application est prévue pour Windows et Linux, avec des données conservées
 
 ## État du projet
 
-Le socle **F0 — Mise en place**, **F1 — Capturer et consulter ses tâches**, **F2 — Organiser et retrouver ses tâches** et **F3 — Terminer et suivre ses tâches** sont implémentés : processus résident, fichier Markdown local, détection des éditions extérieures, configuration du démarrage automatique, tray et raccourcis initiaux sous Windows, X11 et Wayland. La capture, l'édition, les dates, les tags, les quatre sections, la recherche, le filtre par tag, l'ordre manuel, la complétion et l'historique sont disponibles.
+Le socle **F0 — Mise en place**, **F1 — Capturer et consulter ses tâches**, **F2 — Organiser et retrouver ses tâches**, **F3 — Terminer et suivre ses tâches** et **F5 — Consolider l'interface** sont implémentés : processus résident, fichier Markdown local, détection des éditions extérieures, configuration du démarrage automatique, tray et raccourcis initiaux sous Windows, X11 et Wayland. La capture, l'édition, les dates, les tags, les quatre sections, la recherche, le filtre par tag, l'ordre manuel, la complétion et l'historique sont disponibles dans une interface claire et compacte commune à toutes les surfaces.
 
 ## Lancer l'application
 
@@ -41,3 +41,4 @@ Sur Wayland, les raccourcis passent par **XDG Global Shortcuts** : le portail du
 - [Guide de développement](docs/DEVELOPPER.md)
 - [Scénarios F2 et tests exécutables](docs/features/F2-organiser-et-retrouver-ses-taches.md#tests-comme-documentation)
 - [Scénarios F3 et tests exécutables](docs/features/F3-terminer-et-suivre-ses-taches.md#tests-comme-documentation)
+- [Consolidation visuelle F5](docs/features/F5-consolider-interface.md)

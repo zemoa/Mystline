@@ -203,6 +203,8 @@ Toutes les surfaces graphiques utilisent Iced :
 
 Une seule technologie UI est utilisée pour éviter la duplication.
 
+La présentation partage un design system interne unique : palette claire, métriques d'espacement, styles des widgets et icônes SVG symboliques embarquées. Cette couche reste strictement visuelle ; elle ne parse pas les tâches et ne porte aucune règle du domaine. Les surfaces compactes utilisent des dimensions fixes et délèguent les contenus longs aux widgets défilants.
+
 ---
 
 ## 4. Vue d'ensemble

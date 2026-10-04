@@ -1,5 +1,6 @@
 //! Iced 0.14's button handles pointer events only. This wrapper gives the same
 //! control a native focus target, Enter/Space activation and a visible focus ring.
+use super::design::{self, ButtonKind};
 use iced::advanced::Renderer as _;
 use iced::advanced::{
     Clipboard, Layout, Shell, Widget, layout, renderer,
@@ -9,12 +10,18 @@ use iced::{Element, Event, Length, Rectangle, Size, Theme, keyboard, mouse};
 
 pub fn keyboard_button<'a, Message: Clone + 'a>(
     id: impl Into<widget::Id>,
-    label: String,
+    content: impl Into<Element<'a, Message>>,
     message: Message,
+    kind: ButtonKind,
 ) -> Element<'a, Message> {
-    let inner = iced::widget::button(iced::widget::text(label))
+    let inner = iced::widget::button(content)
         .on_press(message.clone())
-        .style(iced::widget::button::secondary);
+        .padding(match kind {
+            ButtonKind::Primary | ButtonKind::Secondary => [10, 14],
+            ButtonKind::Ghost => [7, 7],
+            ButtonKind::Tag(_) => [4, 9],
+        })
+        .style(move |_, status| design::button(kind, status));
     Element::new(KeyboardButton {
         id: id.into(),
         inner: inner.into(),
@@ -145,7 +152,7 @@ impl<Message: Clone> Widget<Message, Theme, iced::Renderer> for KeyboardButton<'
                     border: iced::Border {
                         color: theme.extended_palette().primary.strong.color,
                         width: 2.0,
-                        radius: 4.0.into(),
+                        radius: design::RADIUS_SMALL.into(),
                     },
                     ..renderer::Quad::default()
                 },
