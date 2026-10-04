@@ -7,6 +7,7 @@ Les documentations du projet doivent se trouver dans le dossier `docs/`, à l’
 ## Trouver la source de référence
 
 - Besoin utilisateur, comportement attendu et périmètre du produit : consulter `docs/SFG.md`.
+- Maquette visuelle du produit : consulter `docs/mockup.png`.
 - Décisions techniques, responsabilités et frontières du système : consulter `docs/ARCHITECTURE.md`.
 - Conventions de contribution et pratiques de développement : consulter `docs/DEVELOPPER.md`.
 - Présentation et utilisation du projet : consulter `README.md` lorsqu’il existe.
