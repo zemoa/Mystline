@@ -88,7 +88,14 @@ impl InstanceLock {
             .open(dir.join("instance.lock"))?;
         match file.try_lock_exclusive() {
             Ok(()) => Ok(Some(Self(file))),
-            Err(e) if e.kind() == io::ErrorKind::WouldBlock => Ok(None),
+            // Windows reports a contended LockFileEx as ERROR_LOCK_VIOLATION (33),
+            // which Rust currently classifies as Uncategorized instead of WouldBlock.
+            Err(e)
+                if e.kind() == io::ErrorKind::WouldBlock
+                    || (cfg!(windows) && e.raw_os_error() == Some(33)) =>
+            {
+                Ok(None)
+            }
             Err(e) => Err(e),
         }
     }
