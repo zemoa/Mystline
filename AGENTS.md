@@ -2,11 +2,13 @@
 
 Ce fichier oriente le travail des agents. Il ne remplace pas la documentation du projet.
 
+Les documentations du projet doivent se trouver dans le dossier `docs/`, à l’exception de ce fichier et du `README.md` de présentation à la racine lorsqu’il existe.
+
 ## Trouver la source de référence
 
-- Besoin utilisateur, comportement attendu et périmètre du produit : consulter `SFG.md`.
-- Décisions techniques, responsabilités et frontières du système : consulter `ARCHITECTURE.md`.
-- Conventions de contribution et pratiques de développement : consulter `DEVELOPPER.md`.
+- Besoin utilisateur, comportement attendu et périmètre du produit : consulter `docs/SFG.md`.
+- Décisions techniques, responsabilités et frontières du système : consulter `docs/ARCHITECTURE.md`.
+- Conventions de contribution et pratiques de développement : consulter `docs/DEVELOPPER.md`.
 - Présentation et utilisation du projet : consulter `README.md` lorsqu’il existe.
 
 Lire les documents pertinents avant de modifier le projet. En cas de doute sur l’emplacement d’une information, la placer dans le document qui en est la source de référence plutôt que de la recopier ici.
