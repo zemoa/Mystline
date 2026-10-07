@@ -1,15 +1,12 @@
-use crate::config::Config;
+use crate::config::{self, Config};
 use futures::channel::mpsc::UnboundedSender;
-use global_hotkey::{
-    GlobalHotKeyEvent, GlobalHotKeyManager, HotKeyState,
-    hotkey::{Code, HotKey, Modifiers},
-};
+use global_hotkey::{GlobalHotKeyEvent, GlobalHotKeyManager, HotKeyState, hotkey::HotKey};
 use notify::{RecommendedWatcher, RecursiveMode, Watcher};
 use std::{
     io,
     path::Path,
     sync::{
-        OnceLock,
+        Arc, Mutex, OnceLock,
         atomic::{AtomicBool, Ordering},
     },
 };
@@ -110,33 +107,85 @@ impl Tray {
 
 pub struct Shortcuts {
     _manager: GlobalHotKeyManager,
+    bindings: Arc<Mutex<Bindings>>,
     pub capture_active: bool,
     pub panel_active: bool,
 }
 
+#[derive(Clone, Copy)]
+struct Bindings {
+    capture: Option<HotKey>,
+    panel: Option<HotKey>,
+    capture_active: bool,
+    panel_active: bool,
+}
+
+#[derive(Debug, Clone, Copy)]
+pub enum ShortcutAction {
+    Capture,
+    Panel,
+}
+
 impl Shortcuts {
-    pub fn new() -> Result<Self, global_hotkey::Error> {
+    pub fn new(config: &config::Shortcuts) -> Result<Self, global_hotkey::Error> {
         let manager = GlobalHotKeyManager::new()?;
-        let capture = HotKey::new(Some(Modifiers::CONTROL | Modifiers::SHIFT), Code::Space);
-        let panel = HotKey::new(Some(Modifiers::CONTROL | Modifiers::SHIFT), Code::KeyT);
-        let capture_active = manager.register(capture).is_ok();
-        let panel_active = manager.register(panel).is_ok();
+        let capture = config::parse_shortcut(&config.capture).ok();
+        let panel = config::parse_shortcut(&config.panel).ok();
+        let capture_active = capture.is_some_and(|key| manager.register(key).is_ok());
+        let panel_active = panel.is_some_and(|key| manager.register(key).is_ok());
+        let bindings = Arc::new(Mutex::new(Bindings {
+            capture,
+            panel,
+            capture_active,
+            panel_active,
+        }));
+        let event_bindings = Arc::clone(&bindings);
         GlobalHotKeyEvent::set_event_handler(Some(move |event: GlobalHotKeyEvent| {
             if event.state != HotKeyState::Pressed {
                 return;
             }
-            if event.id == capture.id() && capture_active {
+            let Ok(bindings) = event_bindings.lock() else {
+                return;
+            };
+            if bindings.capture_active && bindings.capture.is_some_and(|key| event.id == key.id()) {
                 emit(Event::Capture);
             }
-            if event.id == panel.id() && panel_active {
+            if bindings.panel_active && bindings.panel.is_some_and(|key| event.id == key.id()) {
                 emit(Event::Panel);
             }
         }));
         Ok(Self {
             _manager: manager,
+            bindings,
             capture_active,
             panel_active,
         })
+    }
+
+    pub fn reconfigure(&mut self, action: ShortcutAction, value: &str) -> bool {
+        let requested = config::parse_shortcut(value).ok();
+        let mut bindings = self.bindings.lock().expect("verrou des raccourcis");
+        let old = match action {
+            ShortcutAction::Capture => bindings.capture,
+            ShortcutAction::Panel => bindings.panel,
+        };
+        if let Some(old) = old {
+            let _ = self._manager.unregister(old);
+        }
+        let active = requested.is_some_and(|key| self._manager.register(key).is_ok());
+        match action {
+            ShortcutAction::Capture => {
+                bindings.capture = requested;
+                bindings.capture_active = active;
+                self.capture_active = active;
+            }
+            ShortcutAction::Panel => {
+                bindings.panel = requested;
+                bindings.panel_active = active;
+                self.panel_active = active;
+            }
+        }
+        active
     }
 }
 
@@ -218,7 +267,9 @@ pub fn set_autostart(config: &Config) -> io::Result<()> {
 }
 
 #[cfg(target_os = "linux")]
-pub async fn portal_shortcuts() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+pub async fn portal_shortcuts(
+    config: config::Shortcuts,
+) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     use ashpd::desktop::{
         CreateSessionOptions,
         global_shortcuts::{BindShortcutsOptions, GlobalShortcuts, NewShortcut},
@@ -229,9 +280,13 @@ pub async fn portal_shortcuts() -> Result<(), Box<dyn std::error::Error + Send +
         .create_session(CreateSessionOptions::default())
         .await?;
     let activated = portal.receive_activated().await?;
+    let capture_trigger = portal_trigger(&config.capture)?;
+    let panel_trigger = portal_trigger(&config.panel)?;
     let shortcuts = [
-        NewShortcut::new("capture", "Capture rapide").preferred_trigger(Some("CTRL+SHIFT+space")),
-        NewShortcut::new("panel", "Ouvrir le panneau").preferred_trigger(Some("CTRL+SHIFT+t")),
+        NewShortcut::new("capture", "Capture rapide")
+            .preferred_trigger(Some(capture_trigger.as_str())),
+        NewShortcut::new("panel", "Ouvrir le panneau")
+            .preferred_trigger(Some(panel_trigger.as_str())),
     ];
     let response = portal
         .bind_shortcuts(&session, &shortcuts, None, BindShortcutsOptions::default())
@@ -263,6 +318,28 @@ pub async fn portal_shortcuts() -> Result<(), Box<dyn std::error::Error + Send +
         }
     }
     Ok(())
+}
+
+#[cfg(target_os = "linux")]
+fn portal_trigger(value: &str) -> Result<String, String> {
+    use global_hotkey::hotkey::Modifiers;
+    let hotkey = config::parse_shortcut(value)?;
+    let mut parts = Vec::new();
+    if hotkey.mods.contains(Modifiers::CONTROL) {
+        parts.push("CTRL".to_owned());
+    }
+    if hotkey.mods.contains(Modifiers::SHIFT) {
+        parts.push("SHIFT".to_owned());
+    }
+    if hotkey.mods.contains(Modifiers::ALT) {
+        parts.push("ALT".to_owned());
+    }
+    if hotkey.mods.contains(Modifiers::SUPER) {
+        parts.push("SUPER".to_owned());
+    }
+    let key = hotkey.key.to_string();
+    parts.push(key.strip_prefix("Key").unwrap_or(&key).to_ascii_lowercase());
+    Ok(parts.join("+"))
 }
 
 #[cfg(test)]
@@ -312,5 +389,15 @@ mod tests {
             })
             .is_none()
         );
+    }
+
+    #[cfg(target_os = "linux")]
+    #[test]
+    fn configured_shortcuts_are_converted_for_the_wayland_portal() {
+        assert_eq!(
+            portal_trigger("Ctrl+Shift+Espace").unwrap(),
+            "CTRL+SHIFT+space"
+        );
+        assert_eq!(portal_trigger("Alt+T").unwrap(), "ALT+t");
     }
 }

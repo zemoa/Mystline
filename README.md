@@ -14,7 +14,7 @@ L’application est prévue pour Windows et Linux, avec des données conservées
 
 ## État du projet
 
-Le socle **F0 — Mise en place**, **F1 — Capturer et consulter ses tâches**, **F2 — Organiser et retrouver ses tâches**, **F3 — Terminer et suivre ses tâches** et **F5 — Consolider l'interface** sont implémentés : processus résident, fichier Markdown local, détection des éditions extérieures, configuration du démarrage automatique, tray et raccourcis initiaux sous Windows, X11 et Wayland. La capture, l'édition, les dates, les tags, les quatre sections, la recherche, le filtre par tag, l'ordre manuel, la complétion et l'historique sont disponibles dans une interface claire et compacte commune à toutes les surfaces.
+Le socle **F0 — Mise en place**, **F1 — Capturer et consulter ses tâches**, **F2 — Organiser et retrouver ses tâches**, **F3 — Terminer et suivre ses tâches**, **F4 — Configurer les raccourcis clavier** et **F5 — Consolider l'interface** sont implémentés : processus résident, fichier Markdown local, détection des éditions extérieures, configuration du démarrage automatique, tray et raccourcis configurables sous Windows, X11 et Wayland. La capture, l'édition, les dates, les tags, les quatre sections, la recherche, le filtre par tag, l'ordre manuel, la complétion et l'historique sont disponibles dans une interface claire et compacte commune à toutes les surfaces.
 
 ## Lancer l'application
 
@@ -31,6 +31,8 @@ Cliquer la case d'une tâche ou presser `Espace` sur sa sélection la termine et
 `Ctrl+H` ou le bouton « Historique », accessible par Tab puis Entrée, affiche toutes les tâches terminées du plus récent au plus ancien, avec leur date de fin. Recherche et filtre par tag restent disponibles et sont conservés entre les vues. ↑/↓ parcourent l'historique ; « Retour », `Ctrl+H` ou Échap revient au quotidien, après avoir retiré une recherche active. Une nouvelle ouverture du panneau présente le quotidien.
 
 Cocher extérieurement une ligne avec `@completed(YYYY-MM-DD)` utilise cette date. Sans date, le jour d'observation sert de date de fin ; aucune écriture immédiate n'est déclenchée et la prochaine sauvegarde applicative fixe cette date. Un redémarrage avant cette sauvegarde renouvelle la date d'observation.
+
+Les deux raccourcis globaux se modifient dans **Paramètres** en saisissant une combinaison puis en choisissant « Valider » (ou avec Entrée dans le champ). Une combinaison identique pour les deux actions est refusée. Si le système refuse une combinaison, elle reste enregistrée et apparaît « Inactif » ; le tray permet toujours d'accéder à l'action.
 
 Sur Wayland, les raccourcis passent par **XDG Global Shortcuts** : le portail du bureau peut demander une autorisation ou refuser une combinaison ; les paramètres indiquent alors son état. L'icône de tray Linux utilise StatusNotifierItem (KSNI) et requiert un bureau qui l'affiche. Pour conserver le démarrage automatique après le développement, lancer un binaire installé à un emplacement stable plutôt que `target/debug/mystline`.
 
