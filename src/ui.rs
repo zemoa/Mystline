@@ -409,6 +409,8 @@ struct State {
     _tray: desktop::Tray,
     _hotkeys: Option<desktop::Shortcuts>,
     shortcut_status: (bool, bool),
+    shortcut_capture_draft: String,
+    shortcut_panel_draft: String,
     quick_capture: QuickCapture,
     navigation: PanelNavigation,
     panel_view: PanelState,
@@ -444,6 +446,8 @@ enum Message {
     PathChanged(String),
     SetSource(bool),
     Autostart(bool),
+    ShortcutChanged(desktop::ShortcutAction, String),
+    SaveShortcut(desktop::ShortcutAction),
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -632,7 +636,7 @@ pub fn run(
     let hotkeys = if wayland {
         None
     } else {
-        desktop::Shortcuts::new().ok()
+        desktop::Shortcuts::new(&config.shortcuts).ok()
     };
     let shortcut_status = hotkeys
         .as_ref()
@@ -644,6 +648,8 @@ pub fn run(
     let state = State {
         config_dir: dir,
         draft_path: config.tasks_file.display().to_string(),
+        shortcut_capture_draft: config.shortcuts.capture.clone(),
+        shortcut_panel_draft: config.shortcuts.panel.clone(),
         config,
         tasks: TaskStore::new(repo),
         pending_write: None,
@@ -673,7 +679,7 @@ pub fn run(
         background_color: design::SURFACE,
         text_color: design::TEXT,
     })
-    .subscription(move |_| subscriptions(wayland))
+    .subscription(move |state| subscriptions(wayland, &state.config.shortcuts))
     .run()?;
     Ok(())
 }
@@ -692,9 +698,10 @@ fn desktop_stream() -> impl futures::Stream<Item = Message> {
 }
 
 #[cfg(target_os = "linux")]
-fn portal_stream() -> impl futures::Stream<Item = Message> {
+fn portal_stream(shortcuts: &config::Shortcuts) -> impl futures::Stream<Item = Message> + use<> {
+    let shortcuts = shortcuts.clone();
     iced::stream::channel(1, async |mut output| {
-        if let Err(error) = desktop::portal_shortcuts().await {
+        if let Err(error) = desktop::portal_shortcuts(shortcuts).await {
             let _ = output
                 .send(Message::Desktop(Event::ShortcutStatus(false, false)))
                 .await;
@@ -705,7 +712,7 @@ fn portal_stream() -> impl futures::Stream<Item = Message> {
     })
 }
 
-fn subscriptions(wayland: bool) -> Subscription<Message> {
+fn subscriptions(wayland: bool, shortcuts: &config::Shortcuts) -> Subscription<Message> {
     #[allow(unused_mut)]
     let mut subs = vec![
         Subscription::run(desktop_stream),
@@ -723,10 +730,10 @@ fn subscriptions(wayland: bool) -> Subscription<Message> {
     ];
     #[cfg(target_os = "linux")]
     if wayland {
-        subs.push(Subscription::run(portal_stream));
+        subs.push(Subscription::run_with(shortcuts.clone(), portal_stream));
     }
     #[cfg(not(target_os = "linux"))]
-    let _ = wayland;
+    let _ = (wayland, shortcuts);
     Subscription::batch(subs)
 }
 
@@ -1331,6 +1338,57 @@ fn update(state: &mut State, message: Message) -> Task<Message> {
             }
             Task::none()
         }
+        Message::ShortcutChanged(action, value) => {
+            match action {
+                desktop::ShortcutAction::Capture => state.shortcut_capture_draft = value,
+                desktop::ShortcutAction::Panel => state.shortcut_panel_draft = value,
+            }
+            state.error = None;
+            Task::none()
+        }
+        Message::SaveShortcut(action) => {
+            let value = match action {
+                desktop::ShortcutAction::Capture => state.shortcut_capture_draft.trim(),
+                desktop::ShortcutAction::Panel => state.shortcut_panel_draft.trim(),
+            };
+            let mut updated = state.config.clone();
+            updated.shortcuts = match updated
+                .shortcuts
+                .changed(matches!(action, desktop::ShortcutAction::Capture), value)
+            {
+                Ok(shortcuts) => shortcuts,
+                Err(error) => {
+                    state.error = Some(error);
+                    return Task::none();
+                }
+            };
+            match config::save(&state.config_dir, &updated) {
+                Ok(()) => {
+                    state.config = updated;
+                    let active = if desktop::is_wayland() {
+                        false
+                    } else if let Some(hotkeys) = state._hotkeys.as_mut() {
+                        hotkeys.reconfigure(action, value)
+                    } else {
+                        state._hotkeys = desktop::Shortcuts::new(&state.config.shortcuts).ok();
+                        if let Some(hotkeys) = &state._hotkeys {
+                            state.shortcut_status = (hotkeys.capture_active, hotkeys.panel_active);
+                        }
+                        match action {
+                            desktop::ShortcutAction::Capture => state.shortcut_status.0,
+                            desktop::ShortcutAction::Panel => state.shortcut_status.1,
+                        }
+                    };
+                    match action {
+                        desktop::ShortcutAction::Capture => state.shortcut_status.0 = active,
+                        desktop::ShortcutAction::Panel => state.shortcut_status.1 = active,
+                    }
+                    state.error = None;
+                }
+                Err(error) => state.error = Some(error.to_string()),
+            }
+            Task::none()
+        }
     }
 }
 
@@ -1414,7 +1472,20 @@ fn settings_view(state: &State, id: window::Id) -> Element<'_, Message> {
         column![
             text("Raccourcis globaux").size(16),
             row![
-                text("Capture rapide").width(Length::Fill),
+                column![
+                    text("Capture rapide"),
+                    text_input("Ctrl+Shift+Espace", &state.shortcut_capture_draft)
+                        .id("settings-shortcut-capture")
+                        .on_input(|value| Message::ShortcutChanged(
+                            desktop::ShortcutAction::Capture,
+                            value
+                        ))
+                        .on_submit(Message::SaveShortcut(desktop::ShortcutAction::Capture))
+                        .padding(10)
+                        .style(design::input),
+                ]
+                .spacing(design::SPACE_1)
+                .width(Length::Fill),
                 text(if capture_active { "Actif" } else { "Inactif" })
                     .size(13)
                     .color(if capture_active {
@@ -1422,9 +1493,28 @@ fn settings_view(state: &State, id: window::Id) -> Element<'_, Message> {
                     } else {
                         design::DANGER
                     }),
+                keyboard_button(
+                    "settings-save-capture",
+                    text("Valider"),
+                    Message::SaveShortcut(desktop::ShortcutAction::Capture),
+                    ButtonKind::Secondary,
+                ),
             ],
             row![
-                text("Ouvrir le panneau").width(Length::Fill),
+                column![
+                    text("Ouvrir / masquer le panneau"),
+                    text_input("Ctrl+Shift+T", &state.shortcut_panel_draft)
+                        .id("settings-shortcut-panel")
+                        .on_input(|value| Message::ShortcutChanged(
+                            desktop::ShortcutAction::Panel,
+                            value
+                        ))
+                        .on_submit(Message::SaveShortcut(desktop::ShortcutAction::Panel))
+                        .padding(10)
+                        .style(design::input),
+                ]
+                .spacing(design::SPACE_1)
+                .width(Length::Fill),
                 text(if panel_active { "Actif" } else { "Inactif" })
                     .size(13)
                     .color(if panel_active {
@@ -1432,6 +1522,12 @@ fn settings_view(state: &State, id: window::Id) -> Element<'_, Message> {
                     } else {
                         design::DANGER
                     }),
+                keyboard_button(
+                    "settings-save-panel",
+                    text("Valider"),
+                    Message::SaveShortcut(desktop::ShortcutAction::Panel),
+                    ButtonKind::Secondary,
+                ),
             ],
         ]
         .spacing(design::SPACE_1),
