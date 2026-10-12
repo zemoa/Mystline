@@ -61,7 +61,20 @@ pub enum TaskCommand {
     Create(TaskInput),
     Update { position: usize, input: TaskInput },
     Complete { position: usize, today: NaiveDate },
+    Reopen { position: usize },
     Reorder { from: usize, to: usize },
+}
+
+impl TaskCommand {
+    pub fn kind(&self) -> &'static str {
+        match self {
+            Self::Create(_) => "create",
+            Self::Update { .. } => "update",
+            Self::Complete { .. } => "complete",
+            Self::Reopen { .. } => "reopen",
+            Self::Reorder { .. } => "reorder",
+        }
+    }
 }
 
 pub fn propose_task_change(
@@ -100,6 +113,12 @@ pub fn propose_task_change(
             task.completed_date = Some(*today);
             task.observed_completion = None;
         }
+        TaskCommand::Reopen { position } => {
+            let task = completed_task(&mut proposed, *position)?;
+            task.completed = false;
+            task.completed_date = None;
+            task.observed_completion = None;
+        }
         TaskCommand::Reorder { from, to } => {
             active_task(&mut proposed, *from)?;
             active_task(&mut proposed, *to)?;
@@ -114,6 +133,14 @@ fn active_task(snapshot: &mut Snapshot, position: usize) -> Result<&mut Task, Cr
         .tasks
         .get_mut(position)
         .filter(|task| !task.completed)
+        .ok_or(CreateTaskError::InvalidPosition)
+}
+
+fn completed_task(snapshot: &mut Snapshot, position: usize) -> Result<&mut Task, CreateTaskError> {
+    snapshot
+        .tasks
+        .get_mut(position)
+        .filter(|task| task.completed)
         .ok_or(CreateTaskError::InvalidPosition)
 }
 
@@ -161,6 +188,15 @@ pub fn complete_task(
     today: NaiveDate,
 ) -> Result<Snapshot, CreateTaskError> {
     apply_task_command(repo, revision, &TaskCommand::Complete { position, today })
+}
+
+/// Réouvre une tâche terminée et retire sa date de fin.
+pub fn reopen_task(
+    repo: &mut TaskRepository,
+    revision: u64,
+    position: usize,
+) -> Result<Snapshot, CreateTaskError> {
+    apply_task_command(repo, revision, &TaskCommand::Reopen { position })
 }
 
 /// La présentation fournit deux voisins visibles de la même section.

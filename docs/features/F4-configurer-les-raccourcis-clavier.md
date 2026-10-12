@@ -1,5 +1,7 @@
 # F4-configurer-les-raccourcis-clavier — Configurer les raccourcis clavier
 
+> Migration Tauri/Vue : ces règles restent le comportement cible. Le socle fournit des surfaces prototypes ; leur portage fonctionnel est suivi dans [la migration](../migration-tauri-vue.md).
+
 ## Objectif et périmètre
 
 Permettre de choisir les deux raccourcis globaux qui déclenchent la capture rapide et l'affichage/masquage du panneau. F0 fournit les raccourcis initiaux, leur enregistrement système et la surface de paramètres ; F4 définit leur modification par l'utilisateur. Les raccourcis internes au panneau ou à la saisie restent définis dans leurs features respectives.

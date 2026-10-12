@@ -1,5 +1,7 @@
 # F2-organiser-et-retrouver-ses-taches — Organiser et retrouver ses tâches
 
+> Migration Tauri/Vue : ces règles restent le comportement cible. Le socle fournit des surfaces prototypes ; leur portage fonctionnel est suivi dans [la migration](../migration-tauri-vue.md).
+
 ## Objectif et périmètre
 
 Permettre d'ajouter facultativement du contexte aux tâches, de préparer le prochain jour ouvré et de retrouver immédiatement la tâche recherchée. Cette feature possède la syntaxe des métadonnées, l'édition, les quatre sections du panneau, l'ordre manuel, les tags, la recherche, les filtres et l'aide à la saisie. La création avec un simple titre et l'ouverture du panneau restent en F1 ; la complétion et l'historique relèvent de F3.
@@ -44,7 +46,7 @@ F2 classe et ordonne les tâches actives. F3 décide de la visibilité et de la 
 
 ## Tests comme documentation
 
-F2 est implémentée. Les scénarios ci-dessous sont exécutables et portent les commentaires **Étant donné / Quand / Alors** dans le code. Les dates sont fixes : vendredi **2026-10-09**, samedi **2026-10-10**, prochain jour ouvré **2026-10-12**. Aucun test n'attend réellement minuit et les tests de persistance utilisent des fichiers temporaires.
+Les règles Rust de F2 sont implémentées ; leur interface Vue reste à porter. Les scénarios ci-dessous sont exécutables et portent les commentaires **Étant donné / Quand / Alors** dans le code. Les dates sont fixes : vendredi **2026-10-09**, samedi **2026-10-10**, prochain jour ouvré **2026-10-12**. Aucun test n'attend réellement minuit et les tests de persistance utilisent des fichiers temporaires.
 
 | Règles | Scénarios exécutables | Source |
 | --- | --- | --- |
@@ -54,7 +56,6 @@ F2 est implémentée. Les scénarios ci-dessous sont exécutables et portent les
 | 02–05 | `une_edition_sans_changement_preserve_la_tache_apres_reouverture` | [Parcours persistés](../../tests/f2_documentation.rs) |
 | 03 | `demain_est_samedi_meme_si_le_prochain_jour_ouvre_est_lundi`, `les_dates_francaises_suivent_le_calendrier`, `les_dates_calendaires_sont_validees` | [Parseur](../../src/presentation/input.rs) |
 | 04 | `les_commandes_vides_repetees_ou_sans_titre_sont_refusees` | [Parseur](../../src/presentation/input.rs) |
-| 04 | `une_capture_invalide_conserve_sa_fenetre_son_texte_et_le_fichier` | [Transitions UI](../../src/ui.rs) |
 | 04–05 | `une_edition_invalide_conserve_la_saisie_et_la_tache_anterieure` | [Parcours persistés](../../tests/f2_documentation.rs) |
 | 05 | `retirer_une_commande_retire_sa_metadonnee`, `echap_annule_ledition_sans_ecrire`, `planifier_une_tache_de_fond_prepare_le_prochain_jour_ouvre` | [Parcours persistés](../../tests/f2_documentation.rs) |
 | 06 | `les_tags_sont_valides_et_uniques_sans_casse` | [Parseur](../../src/presentation/input.rs) |
@@ -65,14 +66,13 @@ F2 est implémentée. Les scénarios ci-dessous sont exécutables et portent les
 | 10 | `une_deadline_future_ne_planifie_pas_la_tache` | [Panneau](../../src/presentation/panel.rs) |
 | 11–12 | `recherche_et_filtre_par_tag_se_croisent_sans_changer_les_sections` | [Panneau](../../src/presentation/panel.rs) |
 | 09–12 | `recherche_filtre_et_changement_de_jour_necrivent_pas` | [Parcours persistés](../../tests/f2_documentation.rs) |
-| 12–14 | `tab_puis_entree_active_un_tag_et_permet_de_retirer_le_filtre` | [Widgets Iced sans fenêtre](../../src/ui.rs) |
 | 13 | `le_reordonnancement_respecte_les_sections_et_les_bornes` | [Panneau](../../src/presentation/panel.rs) |
 | 13 | `le_reordonnancement_filtre_permute_les_positions_visibles` | [Parcours persistés](../../tests/f2_documentation.rs) |
-| 13–14 | `les_actions_visent_la_selection_visible_apres_filtrage_et_permutation` | [Transitions UI](../../src/ui.rs) |
-| 14 | `une_touche_dedition_capturee_ne_declenche_pas_ledition_du_panneau`, `les_fleches_dans_un_champ_texte_ne_deplacent_pas_la_selection`, `effacer_la_recherche_conserve_la_selection_avant_edition` | [Widgets et événements Iced](../../src/ui.rs) |
 | F0 / F2 | `un_conflit_necrase_pas_une_edition_exterieure`, `une_revision_obsolete_refuse_edition_et_permutation`, `un_conflit_de_permutation_preserve_lordre_exterieur` | [Parcours persistés](../../tests/f2_documentation.rs) |
 | F0 / F2 | `un_echec_decriture_ne_confirme_pas_la_modification`, `un_changement_de_source_invalide_ledition_meme_a_revision_egale` | [Parcours persistés](../../tests/f2_documentation.rs) |
 
-Exécuter les parcours persistés : `cargo test --test f2_documentation`. Exécuter les règles du parseur et des projections : `cargo test --lib presentation::`. Exécuter les interactions Iced sans fenêtre : `cargo test --bin mystline ui::tests::`. Afficher le nom de chaque scénario : ajouter `-- --nocapture`.
+Exécuter les parcours persistés : `cargo test --test f2_documentation`. Exécuter les règles du parseur et des projections : `cargo test --lib presentation::`. Afficher le nom de chaque scénario : ajouter `-- --nocapture`.
 
 Vérifications manuelles complémentaires sur Windows, X11 et Wayland : retour du focus à l'activité précédente après capture ; ouverture/redimensionnement de l'aide et affichage des erreurs ; navigation et focus visibles sur les tags ; défilement avec titres longs ; panneau laissé ouvert au changement de jour. Les tests de widgets ne remplacent pas une validation dans ces sessions graphiques.
+
+Les scénarios propres aux widgets de l’ancienne interface ont été retirés avec Iced. Leur couverture clavier, sélection, focus et événements reste à rétablir dans les lots Vue concernés ; voir [le suivi de migration](../migration-tauri-vue.md).

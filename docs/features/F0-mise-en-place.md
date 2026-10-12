@@ -1,5 +1,7 @@
 # F0-mise-en-place — Mise en place
 
+> Migration Tauri/Vue : ces règles restent le comportement cible. Le socle fournit des surfaces prototypes ; leur portage fonctionnel est suivi dans [la migration](../migration-tauri-vue.md).
+
 ## Objectif et périmètre
 
 Rendre l'application exploitable localement, sans compte ni Internet, sur Windows et Linux. Cette feature fournit le processus résident, la configuration locale, le fichier de tâches et les points d'accès système. Elle ne définit ni la création des tâches (F1), ni leur organisation (F2), ni leur fin de vie (F3), ni la modification des raccourcis (F4).
