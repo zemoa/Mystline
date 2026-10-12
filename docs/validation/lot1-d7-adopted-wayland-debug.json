@@ -1,0 +1,52 @@
+{
+  "profile": "debug / surfaces prototypes / raccourcis et autostart non modifiés",
+  "window_mode": "hide",
+  "session_type": "wayland",
+  "startup_without_windows": true,
+  "capture_ready_ms": [
+    207.306089,
+    0.279727,
+    0.35374700000000003
+  ],
+  "native_focus_observed": [
+    true,
+    true,
+    true
+  ],
+  "resident_memory_before_windows": {
+    "processes": 1,
+    "rss_kib": 83432,
+    "pss_kib": 58454
+  },
+  "resident_memory_after_windows": {
+    "processes": 5,
+    "rss_kib": 1046592,
+    "pss_kib": 463885
+  },
+  "resident_memory_after_10_seconds": {
+    "processes": 5,
+    "rss_kib": 1028552,
+    "pss_kib": 445654
+  },
+  "second_instance_exit_success": true,
+  "watcher_valid_reload": true,
+  "watcher_invalid_preserved": true,
+  "all_windows_destroyed": false,
+  "visible_windows_after_close": 0,
+  "retained_native_windows_after_close": 3,
+  "capture_drafts_reset": true,
+  "capture_input_focused": true,
+  "repeated_open_keeps_draft": true,
+  "capture_webview_sessions": [
+    1,
+    1,
+    1
+  ],
+  "panel_toggle_reopens_same_window": true,
+  "native_close_masks_settings": true,
+  "capture_escape_masks_window": true,
+  "date": "2026-10-12",
+  "tauri": "2.12.3",
+  "webkitgtk": "2.54.0",
+  "scope": "Validation du comportement D7 normal, avec observation du DOM Vue et fermeture de capture par Échap"
+}

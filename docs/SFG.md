@@ -1,5 +1,7 @@
 # Spécification fonctionnelle — Gestionnaire de tâches local
 
+> Migration Tauri/Vue : ces règles restent le comportement cible. Le socle fournit des surfaces prototypes ; leur portage fonctionnel est suivi dans [la migration](migration-tauri-vue.md).
+
 ## 1. Objectif du produit
 
 Créer une application de gestion de tâches personnelle, locale, rapide et minimaliste.
@@ -112,7 +114,7 @@ Un raccourci fait apparaître une petite fenêtre de saisie.
 
 L’utilisateur écrit une tâche puis appuie sur Entrée.
 
-La fenêtre disparaît immédiatement.
+La fenêtre disparaît dès que l'enregistrement est confirmé.
 
 ### Affichage des tâches
 
@@ -223,6 +225,10 @@ La tâche est créée.
 La fenêtre disparaît.
 
 La tâche apparaît ensuite dans **Toutes les tâches**.
+
+Le panneau principal propose également une action d'ajout. Elle affiche une saisie intégrée qui
+accepte la même syntaxe et enregistre la tâche avec Entrée, sans imposer de passer par le raccourci
+global.
 
 Il n’existe pas d’Inbox intermédiaire.
 
@@ -416,6 +422,9 @@ Lorsqu'une tâche est terminée :
 * son texte apparaît barré ;
 * elle permet à l’utilisateur de visualiser ce qu’il a accompli.
 
+Une tâche terminée encore visible dans le panneau quotidien peut être décochée. Elle redevient
+alors « À faire » et sa date de fin est retirée. L'historique reste une vue consultative.
+
 La complétion conserve le titre, la date prévue, la deadline et les tags de la tâche. Une tâche terminée ne figure plus dans **En retard** : le jour où elle est cochée, elle apparaît barrée dans **Aujourd'hui** ou **Prochain jour ouvré** si sa date prévue correspond, et sinon dans **Toutes les tâches**.
 
 À partir du lendemain, elle disparaît de la vue principale.
@@ -476,7 +485,7 @@ Les interactions suivantes doivent notamment être possibles au clavier :
 * filtrer par tag ;
 * afficher l’aide.
 
-Pour l'organisation F2 : ↑/↓ sélectionnent une tâche, Entrée l'édite, `Ctrl+F` recherche, Tab/Maj+Tab puis Entrée activent un tag et `Ctrl+↑`/`Ctrl+↓` réordonnent. F1 ouvre l'aide dans la capture ou l'édition. Échap ferme d'abord l'aide, l'édition ou la recherche active avant le panneau. Les commandes de complétion et d'historique restent définies par F3.
+Pour l'organisation F2 : ↑/↓ sélectionnent une tâche, Entrée l'édite, `Ctrl+F` recherche, Tab/Maj+Tab puis Entrée activent un tag et `Ctrl+↑`/`Ctrl+↓` réordonnent. F1 ouvre l'aide dans la capture ou l'édition. Échap ferme d'abord l'aide, l'ajout intégré, l'édition ou la recherche active avant le panneau. Espace bascule la tâche quotidienne sélectionnée entre « À faire » et « Terminée ». Les commandes d'historique restent définies par F3.
 
 ---
 

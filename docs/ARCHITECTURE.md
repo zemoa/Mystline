@@ -1,8 +1,8 @@
 # Architecture — Gestionnaire de tâches local
 
-> **Statut : Architecture v1**
+> **Statut : Architecture Tauri/Vue validée — migration en cours**
 >
-> Ce document décrit les décisions architecturales validées pour le MVP.
+> Ce document décrit la cible architecturale validée pour le MVP. L'état de son implémentation et les lots autorisés figurent dans [le suivi de migration](migration-tauri-vue.md).
 > Il couvre les principes, les frontières, les flux principaux et les responsabilités.
 > Certains choix d'implémentation détaillés (crates exactes, délais de debounce, etc.) ne sont pas figés ici.
 
@@ -32,7 +32,7 @@ Les objectifs architecturaux principaux sont :
 Le domaine ne dépend :
 
 - ni de l'interface graphique ;
-- ni d'Iced ;
+- ni de Tauri ou Vue ;
 - ni du système d'exploitation ;
 - ni du format Markdown ;
 - ni du système de fichiers.
@@ -157,22 +157,11 @@ La simplicité de développement est privilégiée tant que ces objectifs resten
 
 ---
 
-### 2.10 Processus unique
+### 2.10 Instance applicative unique
 
-L'application utilise un seul processus résident.
+Une seule instance applicative est autorisée par session utilisateur. Un second lancement quitte immédiatement et silencieusement, via le plugin Tauri `single-instance`.
 
-Ce processus gère :
-
-- l'intégration desktop ;
-- l'UI ;
-- l'application ;
-- le domaine ;
-- le repository ;
-- le watcher de fichier.
-
-Une seule instance est autorisée par session utilisateur.
-
-Un second lancement quitte immédiatement et silencieusement.
+Un cœur Rust résident détient la configuration, l'application, le domaine, le repository et le watcher. Il orchestre les intégrations desktop et les fenêtres Tauri. Les WebViews peuvent utiliser des processus supplémentaires : l'unicité applicative ne signifie pas un seul processus OS.
 
 ---
 
@@ -190,20 +179,15 @@ Objectifs :
 - robustesse ;
 - exécution résidente adaptée.
 
-### UI
+### UI et hôte desktop
 
-**Iced**
+**Tauri 2 + Vue 3 + Vite + TypeScript**, avec npm, CSS simple et état réactif Vue.
 
-Toutes les surfaces graphiques utilisent Iced :
+Une application Vue commune rend la capture rapide, le panneau quotidien, l'historique et les paramètres. Le frontend porte l'affichage, les brouillons et les interactions ; le domaine, les commandes, le parsing et les projections restent en Rust.
 
-- capture rapide ;
-- panneau principal ;
-- historique ;
-- paramètres.
+La présentation partage une palette claire, des métriques d'espacement, des contrôles compacts et des icônes SVG embarquées. Cette couche visuelle ne parse pas le Markdown et ne porte aucune règle du domaine. La direction graphique reste celle de la maquette et de F5.
 
-Une seule technologie UI est utilisée pour éviter la duplication.
-
-La présentation partage un design system interne unique : palette claire, métriques d'espacement, styles des widgets et icônes SVG symboliques embarquées. Cette couche reste strictement visuelle ; elle ne parse pas les tâches et ne porte aucune règle du domaine. Les surfaces compactes utilisent des dimensions fixes et délèguent les contenus longs aux widgets défilants.
+Le lot 1 fournit trois surfaces prototypes. Le portage des fonctionnalités et le contrat de commandes de tâches sont des lots suivants, encore soumis à validation.
 
 ---
 
@@ -219,7 +203,7 @@ La présentation partage un design system interne unique : palette claire, métr
                            │
                            ▼
 ┌─────────────────────────────────────────────────────────┐
-│                 PRÉSENTATION — ICED                     │
+│                 PRÉSENTATION — RUST / VUE                     │
 │                                                         │
 │  App                                                    │
 │  ├── QuickCapture                                      │
@@ -278,26 +262,18 @@ La présentation partage un design system interne unique : palette claire, métr
 ## 5. Règle de dépendance
 
 ```text
-Desktop ───────┐
-               ▼
-              UI
-               │
-               ▼
-          Application
-               │
-          ┌────┴────┐
-          ▼         ▼
-       Domain     Ports
-                    ▲
-                    │
-             Infrastructure
+Vue ──→ Commandes Tauri ──→ Runtime Rust ──→ Application
+                                │                 │
+Intégration desktop ────────────┘          ┌──────┴──────┐
+                                          ▼             ▼
+                                        Domaine     Repository
 ```
 
 Interdictions importantes :
 
 ```text
 UI      ✗→ Markdown directement
-Domain  ✗→ Iced
+Domain  ✗→ Tauri / Vue
 Domain  ✗→ filesystem
 Desktop ✗→ TaskRepository directement
 ```
@@ -360,6 +336,7 @@ Création
    └── réordonnancement
    ↓
 Terminée
+   ├── réouverture depuis le panneau quotidien
    ↓
 Historique calculé
    ↓
@@ -368,7 +345,6 @@ Purge éventuelle
 
 Hors MVP :
 
-- réouverture d'une tâche terminée ;
 - suppression quotidienne explicite.
 
 La suppression est traitée comme une opération de maintenance via la purge.
@@ -385,6 +361,7 @@ La couche Application expose des actions structurées.
 CreateTask
 UpdateTask
 CompleteTask
+ReopenTask
 ReorderTask
 PurgeTasks
 ```
@@ -437,119 +414,35 @@ L'entrée structurée `application::TaskInput` contient `title`, `planned`, `dea
 
 ---
 
-## 9. Architecture UI Iced
+## 9. Présentation Rust, runtime et UI Vue
 
-### 9.1 État modulaire
+### 9.1 Frontières
 
-Chaque fonctionnalité importante possède son propre état et ses propres messages.
+`presentation::input` et `presentation::panel` conservent en Rust le parsing, les dates, les sections, l'historique, la recherche et les filtres. Les règles sont testables sans fenêtre, avec des dates injectées.
 
-```text
-App
-├── QuickCapture
-│   ├── State
-│   ├── Message
-│   ├── update()
-│   └── view()
-│
-├── TaskPanel
-│   ├── State
-│   ├── Message
-│   ├── update()
-│   └── view()
-│
-├── History
-│   ├── State
-│   ├── Message
-│   ├── update()
-│   └── view()
-│
-└── Settings
-    ├── State
-    ├── Message
-    ├── update()
-    └── view()
-```
+`src/runtime/task_store.rs` détient le snapshot optimiste et le snapshot confirmé. `src/runtime/coordinator.rs` sérialise les opérations et conserve les créations en FIFO pendant une écriture ou un rechargement. Les protections de génération, de séquence et de révision sont indépendantes de Tauri.
 
-La racine Iced coordonne ces modules.
+`src-tauri/` orchestre les fenêtres, l'intégration système et le runtime. `frontend/` contient les composants Vue et le style partagé. Les fenêtres détruites ne détiennent jamais l'unique copie de l'état confirmé.
 
-F2 utilise un état de panneau pour la date locale, la recherche, le tag actif et l'édition. Une édition mémorise la révision et la position du snapshot à son ouverture. Un changement de révision ou de fichier source l'invalide en conservant son brouillon ; elle doit être annulée puis rouverte depuis la liste actualisée. Les erreurs de validation et d'écriture restent affichées dans leur surface.
+### 9.2 Échanges entre les surfaces et le cœur
 
-Les lignes visibles sont une projection du snapshot, chacune associée à sa position physique et à une seule section. La navigation parcourt ces lignes ; une permutation suit la tâche déplacée, et une recherche ou un changement de jour conserve la sélection si elle reste visible. Les tags possèdent des boutons avec focus natif, activation par Entrée/Espace et contour visible, ajoutés par un composant Iced local. Tab est limité aux contrôles du panneau lorsque plusieurs surfaces sont ouvertes ; une touche déjà traitée par un champ ou un bouton ne déclenche pas une seconde action de liste.
+Le lot 1 expose seulement l'état desktop consultatif et le cycle de vie des surfaces. Le contrat des snapshots et commandes de tâches reste à proposer et valider avant le portage fonctionnel.
 
-Un abonnement asynchrone calcule le prochain début de journée locale et attend ce seul instant avec Tokio. Il émet ensuite la nouvelle date et réarme son délai. Le calcul accepte un minuit ambigu ou inexistant ; la date est également revérifiée à l'ouverture et au retour du focus du panneau. Le changement de jour recalcule uniquement la projection, sans lecture périodique ni écriture du fichier.
-
-Exemple :
-
-```rust
-enum AppMessage {
-    QuickCapture(QuickCaptureMessage),
-    TaskPanel(TaskPanelMessage),
-    History(HistoryMessage),
-    Settings(SettingsMessage),
-}
-```
-
----
-
-### 9.2 Snapshot UI
-
-`AppState` possède le snapshot affiché.
-
-Les sous-modules UI ne modifient pas directement le repository.
-
-Ils émettent des intentions vers la racine.
-
-```text
-TaskPanel
-   ↓
-Message
-   ↓
-App::update()
-   ↓
-Application
-   ↓
-Repository
-```
-
----
+La cible conserve une révision runtime et la génération de source. Une action obsolète ne peut pas être appliquée à une autre ligne ou à un autre fichier. Chaque nouvelle fenêtre doit obtenir l'état courant et recevoir les mises à jour, sans dépendre d'événements émis avant son chargement.
 
 ### 9.3 Mise à jour optimiste
 
-L'UI est optimiste.
+L'affichage des modifications reste optimiste. Le snapshot confirmé et le fichier ne changent qu'après réussite du commit atomique. Une erreur resynchronise l'affichage sur l'état confirmé et conserve les brouillons non enregistrés.
 
-Exemple :
+Une seule opération de repository est exécutée à la fois. Une création reçue pendant une écriture ou un rechargement est conservée en FIFO, puis rejouée sur le snapshot confirmé suivant. Elle n'est jamais refusée uniquement parce que le stockage est occupé. Un changement de source attend que les créations reçues soient traitées.
 
-```text
-Utilisateur coche une tâche
-        ↓
-AppState mis à jour immédiatement
-        ↓
-Iced redessine
-        ↓
-CompleteTask
-        ↓
-Repository
-```
+La capture disparaît seulement après confirmation de son enregistrement. Les décisions de fermeture et les retours d'opération devront distinguer chaque session de fenêtre pour ne pas affecter une surface rouverte.
 
-En cas de réussite :
+### 9.4 Navigation et journée locale
 
-```text
-Repository
-   ↓
-nouveau snapshot confirmé
-   ↓
-AppState
-```
+La cible conserve les interactions clavier documentées dans F1–F3 : sélection, recherche, édition, complétion, historique, aide et réordonnancement. Une touche traitée par un champ ou un bouton ne déclenche pas une seconde action de liste. Ces interactions restent à porter et à vérifier dans Vue.
 
-En cas d'échec :
-
-```text
-Repository
-   ↓
-dernier snapshot confirmé
-   ↓
-AppState se resynchronise
-```
+Le cœur attend le prochain début de journée locale avec `next_day_delay`, puis émet la date et réarme son délai, sans polling permanent. Les projections se recalculent à partir de cette date ; le changement de jour ne modifie pas le fichier. La date est aussi revérifiée lors de la consultation de l'état d'une nouvelle surface.
 
 ---
 
@@ -738,6 +631,11 @@ filesystem events
 ```
 
 Le délai exact de coalescence relève de l'implémentation.
+
+Les transitions du watcher et du repository sont journalisées dans le sous-dossier `logs/` du
+répertoire de configuration, que le watcher de `tasks.md` ne surveille pas. Les événements contiennent le type d'opération, la génération, la
+séquence, la révision, les durées d'attente et d'exécution et l'erreur éventuelle, mais jamais le
+titre ni les métadonnées d'une tâche.
 
 ---
 
@@ -1024,7 +922,7 @@ Cette option est désactivable.
 autostart = true
 ```
 
-L'implémentation dépend de l'OS et reste confinée dans `desktop/`.
+L'autostart est confié au plugin Tauri `autostart` dans `src-tauri/`. Le nom `mystline` reprend l'entrée Linux existante ; sous Windows le nom de valeur du registre est insensible à la casse. Le réglage dans `config.toml` reste la référence.
 
 ---
 
@@ -1037,7 +935,7 @@ Deux raccourcis globaux sont configurables :
 
 Leurs combinaisons par défaut sont `Ctrl+Shift+Espace` et `Ctrl+Shift+T`.
 
-Sur Linux Wayland, l'enregistrement passe par le portail XDG Global Shortcuts : le compositeur peut demander une autorisation, refuser un raccourci ou proposer une combinaison différente. L'état actif reflète les raccourcis effectivement accordés. Sur X11 et Windows, l'enregistrement utilise les API de raccourcis globaux du système. Le tray reste l'accès de repli si le portail ou l'un des raccourcis est indisponible.
+Sur Linux Wayland, l'enregistrement passe par le portail XDG Global Shortcuts : le compositeur peut demander une autorisation, refuser un raccourci ou proposer une combinaison différente. L'état actif reflète les raccourcis effectivement accordés. Sur X11 et Windows, l'enregistrement utilise le plugin Tauri `global-shortcut`. Sous Wayland, l'adaptateur `ashpd` existant est conservé. Le tray reste l'accès de repli si le portail ou l'un des raccourcis est indisponible.
 
 La configuration conserve la valeur demandée même si l'OS refuse son enregistrement.
 
@@ -1069,7 +967,7 @@ Nouvelle tentative uniquement :
 
 Le tray est une surface de contrôle système minimale.
 
-Le clic principal sur son icône déclenche une demande d'ouverture du panneau, distincte de l'affichage/masquage demandé par le raccourci ou l'entrée du menu. L'UI ouvre le panneau ou redonne le focus à sa fenêtre existante. Le clic secondaire ouvre le menu. Les activations du backend Linux KSNI et les clics Windows sont transmis par le même canal d'événements desktop, sans polling.
+Le clic principal sur son icône déclenche une demande d'ouverture du panneau, distincte de l'affichage/masquage demandé par le raccourci ou l'entrée du menu. L'UI ouvre le panneau ou redonne le focus à sa fenêtre existante. Le clic secondaire ouvre le menu. L'API tray Tauri est utilisée sous Windows ; Linux conserve le backend KSNI, car l'API tray standard Tauri n'y fournit pas les clics. Les deux adaptateurs transmettent leurs actions au même canal d'événements desktop, sans polling.
 
 ```text
 Tray
@@ -1090,25 +988,15 @@ Le tray ne contient :
 
 ## 24. Cycle de vie des surfaces
 
-L'état des surfaces Iced est créé au démarrage. Le processus Iced démarre comme daemon, sans fenêtre visible. Les fenêtres natives sont ouvertes à la demande et fermées lorsqu'elles sont masquées : l'état et le snapshot restent détenus par le processus résident. Ce choix évite de dépendre d'une API de masquage de fenêtre non exposée par Iced et fonctionne aussi sous Wayland.
+Le cœur Tauri démarre sans fenêtre visible. La capture, le panneau et les paramètres sont créés à leur première ouverture, puis conservés et masqués à la fermeture. L'historique reste une vue du panneau.
 
-```text
-QuickCapture
-TaskPanel
-Settings
-```
+La stratégie de conservation et masquage après première ouverture a été validée pour D7 après le test comparatif du lot 1. Elle privilégie les réouvertures et ne crée pas de WebView avant le premier appel de sa surface.
 
-Les surfaces sont ensuite ouvertes ou fermées selon les demandes utilisateur.
+Une réservation empêche plusieurs ouvertures concurrentes de créer des fenêtres identiques. La session identifie la fenêtre native ; une activation distincte identifie chaque réouverture après masquage. Une demande sur une fenêtre déjà visible lui redonne le focus sans effacer la saisie. Le frontend signale son chargement initial ; une fermeture reçue avant ce signal empêche son affichage tardif. Les opérations de visibilité sont ordonnées sur le thread principal.
 
-```text
-fermer QuickCapture → fermer la fenêtre native, garder le processus
-fermer TaskPanel    → fermer la fenêtre native, garder le processus
-fermer Settings     → fermer la fenêtre native, garder le processus
-```
+Le bouton de fermeture, Échap et une fermeture native masquent la fenêtre. Le frontend abandonne les états transitoires non enregistrés et redonne le focus à la capture lors de sa réouverture. Les activations permettent d'ignorer une fermeture retardée provenant d'une ancienne ouverture. Le basculement du panneau dépend de sa visibilité demandée, pas de l'existence de sa fenêtre.
 
-La fermeture d'une surface ne quitte jamais le processus.
-
-Seule une action explicite `Quitter` arrête l'application.
+La fermeture de la dernière surface ne quitte jamais l'application. Le plugin d'instance unique et les intégrations desktop restent actifs. Seule l'action explicite « Quitter » arrête le cœur et détruit les fenêtres conservées.
 
 ---
 
@@ -1125,7 +1013,7 @@ désenregistrement raccourcis
    ↓
 fermeture surfaces
    ↓
-libération verrou d'instance
+libération de l'instance Tauri
    ↓
 fin processus
 ```
@@ -1171,7 +1059,7 @@ snapshot confirmé
 L'objectif UX est :
 
 ```text
-raccourci → saisie → Entrée → disparition immédiate
+raccourci → saisie → Entrée → disparition dès confirmation de l'enregistrement
 ```
 
 ---
@@ -1198,10 +1086,10 @@ nouveau cache   conserver
 revision + 1    ancien cache
       │
       ▼
-nouveau snapshot AppState
+nouveau snapshot runtime
       │
       ▼
-Iced redessine les vues
+Vue actualise les vues
 ```
 
 Aucune fusion ligne par ligne n'est tentée.
@@ -1215,7 +1103,7 @@ TaskPanel
    ↓
 CompleteSelected
    ↓
-AppState optimiste :
+Snapshot runtime optimiste :
 task.completed = true
    ↓
 Application::CompleteTask
@@ -1258,49 +1146,36 @@ L'ordre des lignes est l'ordre métier relatif.
 
 ---
 
-## 30. Structure de projet proposée
-
-La structure exacte peut évoluer pendant l'implémentation, mais les frontières doivent rester visibles.
+## 30. Structure de projet
 
 ```text
+Cargo.toml                 bibliothèque Rust existante
 src/
-├── domain/
-│   └── task.rs
-│
-├── application/
-│   ├── create_task.rs
-│   ├── update_task.rs
-│   ├── complete_task.rs
-│   ├── reorder_task.rs
-│   └── purge_tasks.rs
-│
+├── domain.rs
+├── application.rs
+├── config.rs
 ├── repository/
-│   ├── task_repository.rs
-│   └── markdown_codec.rs
-│
-├── desktop/
-│   ├── shortcuts.rs
-│   ├── autostart.rs
-│   ├── tray.rs
-│   ├── single_instance.rs
-│   └── file_watcher.rs
-│
-├── config/
-│   └── config.rs
-│
-└── ui/
-    ├── app.rs
-    ├── message.rs
-    ├── quick_capture.rs
-    ├── task_panel.rs
-    ├── history.rs
-    ├── settings.rs
-    ├── input_parser.rs
-    └── components/
+├── presentation/
+└── runtime/
+    ├── coordinator.rs
+    └── task_store.rs
+frontend/
+├── package.json
+├── vite.config.ts
+└── src/                   Vue / TypeScript / CSS
+src-tauri/
+├── Cargo.toml             hôte desktop, dépendant de la bibliothèque racine
+├── tauri.conf.json
+├── capabilities/
+└── src/
+    ├── main.rs
+    ├── desktop.rs
+    ├── linux.rs
+    └── surfaces.rs
+tests/                     parcours persistés F2/F3
 ```
 
-Cette arborescence n'impose pas un fichier par cas d'usage si cela produit trop de granularité.
-Le principe important est la séparation des responsabilités, pas le nombre de fichiers.
+Les manifests Rust ont chacun leur lockfile. Aucun workspace Cargo ni crate de domaine supplémentaire n'est introduit. Le contrat de tâches et les composants fonctionnels Vue seront ajoutés dans les lots validés suivants.
 
 ---
 
@@ -1309,17 +1184,17 @@ Le principe important est la séparation des responsabilités, pas le nombre de 
 Les sujets suivants relèvent de la conception détaillée ou de l'implémentation :
 
 - crates Rust exactes ;
-- version exacte d'Iced ;
+- versions mineures exactes de Tauri/Vue ;
 - format précis des erreurs UI ;
 - délai de coalescence du watcher ;
 - stratégie UX détaillée de purge ;
-- widgets et bibliothèque visuelle ;
+- composants visuels détaillés ;
 - styles, couleurs et composants ;
 - seuils chiffrés CPU/RAM/latence ;
 - format détaillé des logs ;
 - packaging Windows/Linux ;
-- mécanisme OS exact pour l'autostart ;
-- mécanisme OS exact pour l'instance unique.
+- formats de distribution et installation des prérequis WebView ;
+- mesures complémentaires sur les interfaces fonctionnelles et les autres plateformes.
 
 Ils ne doivent pas remettre en cause les frontières définies ici sans nouvelle décision architecturale.
 
@@ -1330,8 +1205,8 @@ Ils ne doivent pas remettre en cause les frontières définies ici sans nouvelle
 | Sujet | Décision |
 |---|---|
 | Langage | Rust |
-| UI | Iced |
-| Processus | Unique et résident |
+| UI | Vue 3 / TypeScript, hôte Tauri 2 |
+| Processus | Cœur Rust résident et processus WebView possibles |
 | Instance | Une seule par session |
 | Stockage | `tasks.md` |
 | Format | Markdown structuré |
@@ -1340,7 +1215,7 @@ Ils ne doivent pas remettre en cause les frontières définies ici sans nouvelle
 | Filtres | Côté présentation |
 | Sections du panneau | Côté présentation |
 | Cache | Repository |
-| Snapshot UI | AppState |
+| Snapshot UI | Runtime Rust, rendu Vue |
 | UI | Optimiste |
 | Persistance | Immédiate et atomique |
 | Éditions extérieures | Temps réel via file watcher |
@@ -1354,9 +1229,9 @@ Ils ne doivent pas remettre en cause les frontières définies ici sans nouvelle
 | Conflit raccourci | Config conservée, raccourci inactif |
 | Retry raccourci | Démarrage ou modification uniquement |
 | Tray | Minimal |
-| Fermeture fenêtre | Masquage |
+| Fermeture fenêtre | Masquage, fenêtre conservée après première ouverture |
 | Suppression | Purge de maintenance |
-| Reopen | Hors MVP |
+| Reopen | Depuis le panneau quotidien uniquement |
 | Cloud | Aucun |
 | Compte | Aucun |
 | Dépendance Internet | Aucune |

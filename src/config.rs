@@ -1,7 +1,7 @@
 use directories::ProjectDirs;
 use serde::{Deserialize, Serialize};
 use std::{
-    fs::{self, File},
+    fs,
     io::{self, Write},
     path::{Path, PathBuf},
 };
@@ -116,39 +116,6 @@ pub fn save(dir: &Path, config: &Config) -> Result<(), ConfigError> {
     Ok(())
 }
 
-pub struct InstanceLock(File);
-
-impl InstanceLock {
-    pub fn acquire(dir: &Path) -> io::Result<Option<Self>> {
-        use fs2::FileExt;
-        fs::create_dir_all(dir)?;
-        let file = File::options()
-            .read(true)
-            .write(true)
-            .create(true)
-            .truncate(false)
-            .open(dir.join("instance.lock"))?;
-        match file.try_lock_exclusive() {
-            Ok(()) => Ok(Some(Self(file))),
-            // Windows reports a contended LockFileEx as ERROR_LOCK_VIOLATION (33),
-            // which Rust currently classifies as Uncategorized instead of WouldBlock.
-            Err(e)
-                if e.kind() == io::ErrorKind::WouldBlock
-                    || (cfg!(windows) && e.raw_os_error() == Some(33)) =>
-            {
-                Ok(None)
-            }
-            Err(e) => Err(e),
-        }
-    }
-}
-
-impl Drop for InstanceLock {
-    fn drop(&mut self) {
-        let _ = fs2::FileExt::unlock(&self.0);
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -189,13 +156,5 @@ mod tests {
         let shortcuts = Shortcuts::default();
         assert!(shortcuts.changed(true, "Shift+Ctrl+T").is_err());
         assert_eq!(shortcuts, Shortcuts::default());
-    }
-    #[test]
-    fn instance_is_exclusive() {
-        let dir = tempfile::tempdir().unwrap();
-        let guard = InstanceLock::acquire(dir.path()).unwrap().unwrap();
-        assert!(InstanceLock::acquire(dir.path()).unwrap().is_none());
-        drop(guard);
-        assert!(InstanceLock::acquire(dir.path()).unwrap().is_some());
     }
 }

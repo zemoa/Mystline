@@ -1,0 +1,88 @@
+{
+  "date": "2026-10-12",
+  "rust": "1.98.0",
+  "tauri": "2.12.3",
+  "webkitgtk": "2.54.0",
+  "protocol": "Même binaire debug, deux processus neufs successifs ; trois ouvertures de capture, panneau et paramètres, puis dix secondes de repos. Fichier temporaire initialement vide et remplacements atomiques pour vérifier le watcher.",
+  "timing_endpoint": "Vue chargée et visibilité native signalée ; le rendu effectif des pixels à l’écran n’est pas mesuré.",
+  "limitations": [
+    "Une paire d’essais sur des surfaces prototypes, deux réouvertures de capture par variante",
+    "Résultats Wayland uniquement, en profil debug",
+    "Pas de modification de l’autostart ni des raccourcis",
+    "Aucune adoption de la variante masquée dans le fonctionnement normal"
+  ],
+  "destroy": {
+    "profile": "debug / surfaces prototypes / raccourcis et autostart non modifiés",
+    "window_mode": "destroy",
+    "session_type": "wayland",
+    "startup_without_windows": true,
+    "capture_ready_ms": [
+      211.312351,
+      164.091741,
+      164.30945
+    ],
+    "native_focus_observed": [
+      true,
+      true,
+      true
+    ],
+    "resident_memory_before_windows": {
+      "processes": 1,
+      "rss_kib": 82668,
+      "pss_kib": 57818
+    },
+    "resident_memory_after_windows": {
+      "processes": 7,
+      "rss_kib": 1466452,
+      "pss_kib": 529891
+    },
+    "resident_memory_after_10_seconds": {
+      "processes": 7,
+      "rss_kib": 1403824,
+      "pss_kib": 467008
+    },
+    "second_instance_exit_success": true,
+    "watcher_valid_reload": true,
+    "watcher_invalid_preserved": true,
+    "all_windows_destroyed": true,
+    "visible_windows_after_close": 0,
+    "retained_native_windows_after_close": 0
+  },
+  "hide": {
+    "profile": "debug / surfaces prototypes / raccourcis et autostart non modifiés",
+    "window_mode": "hide",
+    "session_type": "wayland",
+    "startup_without_windows": true,
+    "capture_ready_ms": [
+      201.579009,
+      0.185539,
+      0.140173
+    ],
+    "native_focus_observed": [
+      true,
+      true,
+      true
+    ],
+    "resident_memory_before_windows": {
+      "processes": 1,
+      "rss_kib": 82736,
+      "pss_kib": 57762
+    },
+    "resident_memory_after_windows": {
+      "processes": 5,
+      "rss_kib": 1051656,
+      "pss_kib": 464840
+    },
+    "resident_memory_after_10_seconds": {
+      "processes": 5,
+      "rss_kib": 1033300,
+      "pss_kib": 446419
+    },
+    "second_instance_exit_success": true,
+    "watcher_valid_reload": true,
+    "watcher_invalid_preserved": true,
+    "all_windows_destroyed": false,
+    "visible_windows_after_close": 0,
+    "retained_native_windows_after_close": 3
+  }
+}

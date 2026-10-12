@@ -1,5 +1,5 @@
 //! Le snapshot affiché est optimiste ; seul le worker touche le repository.
-use mystline::{
+use crate::{
     application::{self, TaskCommand},
     repository::{Snapshot, TaskRepository},
 };
@@ -60,6 +60,7 @@ pub struct JobResult {
     pub kind: OperationKind,
     pub snapshot: Snapshot,
     pub error: Option<String>,
+    duration_ms: u128,
 }
 
 impl TaskStore {
@@ -92,9 +93,18 @@ impl TaskStore {
         command: TaskCommand,
     ) -> Result<Job, String> {
         if source != self.source_revision() {
+            tracing::warn!(
+                source_generation = source.generation,
+                source_revision = source.revision,
+                current_generation = self.generation,
+                current_revision = self.snapshot.revision,
+                operation = command.kind(),
+                "write_rejected_stale_source"
+            );
             return Err("La liste ou le fichier source a changé. Reprendre l'action depuis la liste actuelle.".into());
         }
         if self.is_busy() {
+            tracing::info!(operation = command.kind(), "write_deferred_busy_store");
             return Err("Un enregistrement ou un rechargement est en cours. Réessayer après sa confirmation.".into());
         }
         let proposed = application::propose_task_change(&self.confirmed, source.revision, &command)
@@ -118,6 +128,14 @@ impl TaskStore {
             sequence: self.sequence,
         };
         self.pending = Some(token);
+        tracing::info!(
+            generation = token.generation,
+            sequence = token.sequence,
+            revision = self.confirmed.revision,
+            operation_kind = ?kind,
+            command = command.as_ref().map(TaskCommand::kind).unwrap_or("reload"),
+            "repository_operation_started"
+        );
         Job {
             repo: self.repo.clone(),
             token,
@@ -131,11 +149,35 @@ impl TaskStore {
     /// Un résultat retardé d'une ancienne source ne remplace jamais la nouvelle.
     pub fn finish(&mut self, result: &JobResult) -> bool {
         if self.pending != Some(result.token) {
+            tracing::warn!(
+                generation = result.token.generation,
+                sequence = result.token.sequence,
+                "repository_result_ignored"
+            );
             return false;
         }
         self.pending = None;
         self.confirmed = result.snapshot.clone();
         self.snapshot = result.snapshot.clone();
+        if let Some(error) = &result.error {
+            tracing::error!(
+                generation = result.token.generation,
+                sequence = result.token.sequence,
+                operation_kind = ?result.kind,
+                duration_ms = result.duration_ms,
+                %error,
+                "repository_operation_failed"
+            );
+        } else {
+            tracing::info!(
+                generation = result.token.generation,
+                sequence = result.token.sequence,
+                operation_kind = ?result.kind,
+                revision = result.snapshot.revision,
+                duration_ms = result.duration_ms,
+                "repository_operation_finished"
+            );
+        }
         true
     }
 
@@ -145,16 +187,19 @@ impl TaskStore {
         self.repo = Arc::new(Mutex::new(repo));
         self.snapshot = self.confirmed.clone();
         self.pending = None;
+        tracing::info!(generation = self.generation, "repository_source_replaced");
     }
 }
 
 impl Job {
-    pub(super) fn run(self) -> JobResult {
+    pub(crate) fn run(self) -> JobResult {
+        let started = std::time::Instant::now();
         let mut result = JobResult {
             token: self.token,
             kind: self.kind,
             snapshot: self.confirmed,
             error: None,
+            duration_ms: 0,
         };
         match self.repo.lock() {
             Ok(mut repo) => {
@@ -170,6 +215,7 @@ impl Job {
             }
             Err(_) => result.error = Some("Le stockage n'est plus disponible.".into()),
         }
+        result.duration_ms = started.elapsed().as_millis();
         result
     }
 
@@ -179,6 +225,7 @@ impl Job {
             kind: self.kind,
             snapshot: self.confirmed.clone(),
             error: None,
+            duration_ms: 0,
         };
         match tokio::task::spawn_blocking(move || self.run()).await {
             Ok(result) => result,
@@ -193,8 +240,8 @@ impl Job {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::application::TaskInput;
     use chrono::NaiveDate;
-    use mystline::application::TaskInput;
     use std::fs;
 
     fn day(day: u32) -> NaiveDate {
@@ -241,6 +288,7 @@ mod tests {
                 TaskCommand::Create(_) => assert_eq!(store.snapshot.tasks[2].title, "Nouvelle"),
                 TaskCommand::Update { .. } => assert_eq!(store.snapshot.tasks[0].title, "Modifiée"),
                 TaskCommand::Complete { .. } => assert!(store.snapshot.tasks[0].completed),
+                TaskCommand::Reopen { .. } => unreachable!(),
                 TaskCommand::Reorder { .. } => assert_eq!(store.snapshot.tasks[0].title, "B"),
             }
             assert_eq!(fs::read_to_string(&path).unwrap(), original);

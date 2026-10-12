@@ -1,0 +1,43 @@
+{
+  "profile": "debug / surfaces prototypes / raccourcis et autostart non modifiés",
+  "session_type": "wayland",
+  "startup_without_windows": true,
+  "capture_ready_ms": [
+    221.701478,
+    182.308714,
+    183.002989
+  ],
+  "native_focus_observed": [
+    true,
+    true,
+    true
+  ],
+  "resident_memory_before_windows": {
+    "processes": 1,
+    "rss_kib": 82288,
+    "pss_kib": 57688
+  },
+  "resident_memory_after_windows": {
+    "processes": 7,
+    "rss_kib": 1465320,
+    "pss_kib": 527874
+  },
+  "resident_memory_after_10_seconds": {
+    "processes": 7,
+    "rss_kib": 1397868,
+    "pss_kib": 460159
+  },
+  "second_instance_exit_success": true,
+  "watcher_valid_reload": true,
+  "watcher_invalid_preserved": true,
+  "all_windows_destroyed": true,
+  "date": "2026-10-12",
+  "rust": "1.98.0",
+  "tauri": "2.12.3",
+  "webkitgtk": "2.54.0",
+  "limitations": [
+    "Surfaces prototypes et binaire debug, sans comparaison Iced à charge identique",
+    "Raccourcis et autostart désactivés pour la sonde",
+    "Pas de validation graphique Windows ou X11"
+  ]
+}

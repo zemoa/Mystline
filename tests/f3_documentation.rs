@@ -317,25 +317,21 @@ fn un_conflit_de_completion_preserve_ledition_exterieure() {
 }
 
 #[test]
-fn une_tache_terminee_ne_peut_pas_etre_reouverte() {
+fn une_tache_terminee_peut_etre_reouverte_depuis_le_panneau_quotidien() {
     // RG-F3-01 — Étant donné une tâche déjà cochée.
     let mut f = Fixture::new("- [x] Accomplie @completed(2026-10-09)\n");
     let before = f.repo.snapshot();
-    let text = f.text();
-    // Quand une complétion répétée ou une position inexistante est demandée.
-    for position in [0, 99] {
-        assert!(matches!(
-            application::complete_task(&mut f.repo, before.revision, position, date(10)),
-            Err(CreateTaskError::InvalidPosition)
-        ));
-    }
-    // Alors ni l'état, ni la date, ni la révision, ni le fichier ne changent.
-    assert_eq!(f.repo.snapshot().tasks, before.tasks);
-    assert_eq!(f.repo.snapshot().revision, before.revision);
-    assert_eq!(f.text(), text);
-    f.panel.begin_edit(&before, 0);
-    assert!(f.panel.editor.is_none());
-    assert_eq!(f.panel.neighbor(&before, 0, true), None);
+    // Quand sa case est décochée.
+    let reopened = application::reopen_task(&mut f.repo, before.revision, 0).unwrap();
+    // Alors elle redevient active, sa date de fin disparaît et le fichier est mis à jour.
+    assert!(!reopened.tasks[0].completed);
+    assert_eq!(reopened.tasks[0].completed_date, None);
+    assert_eq!(reopened.tasks[0].observed_completion, None);
+    assert_eq!(f.text(), "- [ ] Accomplie\n");
+    assert!(matches!(
+        application::reopen_task(&mut f.repo, reopened.revision, 99),
+        Err(CreateTaskError::InvalidPosition)
+    ));
 }
 
 #[test]

@@ -1,0 +1,24 @@
+{
+  "name": "mystline-ui",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite --host 127.0.0.1 --port 1420 --strictPort",
+    "build": "vue-tsc --noEmit && vite build",
+    "tauri": "cd .. && tauri",
+    "desktop:dev": "cd .. && tauri dev",
+    "desktop:build": "cd .. && tauri build --no-bundle"
+  },
+  "dependencies": {
+    "@tauri-apps/api": "^2",
+    "vue": "^3"
+  },
+  "devDependencies": {
+    "@tauri-apps/cli": "^2",
+    "@vitejs/plugin-vue": "^6",
+    "typescript": "^5",
+    "vite": "^7",
+    "vue-tsc": "^3"
+  }
+}
