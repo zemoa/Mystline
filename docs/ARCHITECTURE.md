@@ -181,7 +181,7 @@ Objectifs :
 
 ### UI et hôte desktop
 
-**Tauri 2 + Vue 3 + Vite + TypeScript**, avec npm, CSS simple et état réactif Vue.
+**Tauri 2 + Vue 3 + Vite + TypeScript**, avec pnpm, CSS simple et état réactif Vue.
 
 Une application Vue commune rend la capture rapide, le panneau quotidien, l'historique et les paramètres. Le frontend porte l'affichage, les brouillons et les interactions ; le domaine, les commandes, le parsing et les projections restent en Rust.
 
