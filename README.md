@@ -20,7 +20,7 @@ Le premier lot fournit le socle résident, le tray, les raccourcis et trois surf
 
 ## Lancer le socle Tauri
 
-Installer Rust, Node.js/npm et les [prérequis Tauri de la plateforme](https://v2.tauri.app/start/prerequisites/). Depuis `frontend/`, exécuter `npm ci`, puis `npm run desktop:dev`. `npm run desktop:build` construit un binaire local, sans installer : le packaging reste à décider.
+Installer Rust, Node.js et pnpm, ainsi que les [prérequis Tauri de la plateforme](https://v2.tauri.app/start/prerequisites/). Depuis `frontend/`, exécuter `pnpm install --frozen-lockfile`, puis `pnpm run desktop:dev`. `pnpm run desktop:build` construit un binaire local, sans installer : le packaging reste à décider.
 
 Le programme reprend `config.toml` et `tasks.md` dans le répertoire de configuration habituel. Il démarre sans fenêtre. Le tray ouvre les trois surfaces ; Échap, le bouton de fermeture ou une fermeture native masque la fenêtre sans arrêter l'application. Elle est réutilisée au prochain appel, avec un brouillon neuf. « Quitter » arrête le cœur résident.
 

@@ -9,7 +9,7 @@ Le 12 octobre 2026, les choix suivants ont été validés avec l'utilisateur.
 | D1 | Préserver les fonctionnalités et la direction graphique actuelles. Le minimalisme concerne la structure Vue. |
 | D2 | Remplacement direct sur une branche dédiée, sans maintien des deux interfaces. |
 | D3 | Garder le domaine, les commandes, le parsing, les dates, sections, recherches et filtres en Rust. Vue porte l'affichage et les interactions. |
-| D4 | Tauri 2, Vue 3, Vite, TypeScript, npm, CSS simple et état réactif Vue. |
+| D4 | Tauri 2, Vue 3, Vite, TypeScript, pnpm, CSS simple et état réactif Vue. |
 | D5 | Conserver la bibliothèque Rust à la racine et ajouter `frontend/` et `src-tauri/`. |
 | D6 | API tray Tauri sur Windows ; adaptation KSNI sur Linux ; plugin global-shortcut sur Windows/X11 ; portail XDG via ashpd sur Wayland ; plugins autostart et single-instance. |
 | D7 | Conserver et masquer les fenêtres après leur première ouverture ; choix validé après le test comparatif Wayland. |
@@ -52,7 +52,7 @@ Les résultats de compilation, tests et mesures ainsi que les vérifications gra
 
 ## Bilan du lot 1 — 12 octobre 2026
 
-- Construction complète `npm run desktop:build -- --debug` réussie, frontend TypeScript/Vite compris.
+- Construction complète `pnpm run desktop:build -- --debug` réussie, frontend TypeScript/Vite compris.
 - Contrôle du backend en profil release réussi ; la sonde de développement est exclue de ce profil.
 - 77 tests de la bibliothèque et 5 tests du backend passent ; Clippy passe avec les avertissements traités comme erreurs.
 - Le contrôle de la bibliothèque pour `x86_64-pc-windows-gnu` passe.
