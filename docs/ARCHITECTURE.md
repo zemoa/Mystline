@@ -1150,6 +1150,9 @@ L'ordre des lignes est l'ordre métier relatif.
 
 ```text
 Cargo.toml                 bibliothèque Rust existante
+package.json               commandes frontend et desktop depuis la racine
+pnpm-workspace.yaml        workspace incluant frontend/
+pnpm-lock.yaml             dépendances JavaScript verrouillées
 src/
 ├── domain.rs
 ├── application.rs
