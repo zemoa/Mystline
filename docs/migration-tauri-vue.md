@@ -24,7 +24,7 @@ La migration prend comme base l'état du dossier, modifications non commitées c
 - Retirer le point d'entrée, les composants et les dépendances Iced.
 - Extraire le stockage asynchrone et la coordination dans `src/runtime/`.
 - Garder la sérialisation des écritures, la FIFO de captures et les protections de révision/génération.
-- Installer un frontend Vue commun à trois fenêtres : capture, panneau, paramètres.
+- Installer un frontend Vue commun à la capture et au panneau ; les paramètres sont une vue qui remplace le contenu du panneau.
 - Brancher les intégrations système validées, le watcher et le réveil au changement de journée.
 - Vérifier démarrage invisible, absence de duplication, focus, fermeture/réouverture et survie du cœur résident.
 - Mesurer mémoire au repos et délai d'ouverture.
@@ -61,7 +61,7 @@ Les résultats de compilation, tests et mesures ainsi que les vérifications gra
 - 77 tests de la bibliothèque et 5 tests du backend passent ; Clippy passe avec les avertissements traités comme erreurs.
 - Le contrôle de la bibliothèque pour `x86_64-pc-windows-gnu` passe.
 - Le contrôle du backend pour cette cible est arrêté par l'absence de `x86_64-w64-mingw32-windres` dans l'environnement. Il n'est pas présenté comme une validation Windows.
-- La sonde sur Wayland vérifie démarrage sans fenêtre, ouverture sans duplication, trois réouvertures de capture avec focus natif observé, panneau et paramètres simultanés, destruction des surfaces, second lancement silencieux et watcher valide/invalide après fermeture des fenêtres.
+- La sonde sur Wayland vérifie démarrage sans fenêtre, ouverture sans duplication, trois réouvertures de capture avec focus natif observé, remplacement du panneau par les paramètres sans fenêtre supplémentaire, destruction des surfaces, second lancement silencieux et watcher valide/invalide après fermeture des fenêtres.
 
 Le [rapport de mesure](validation/lot1-wayland-debug.json) concerne des surfaces prototypes en debug sous WebKitGTK 2.54.0, avec Tauri 2.12.3. Les temps incluent l'attente de chargement Vue et la résolution de la sonde (20 ms) ; ce ne sont pas des mesures finales de capture utilisateur.
 

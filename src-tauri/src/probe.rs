@@ -234,7 +234,7 @@ pub fn probe_dom_state(
     token: u64,
     value: serde_json::Value,
 ) -> Result<(), String> {
-    if directory().is_none() || !matches!(window.label(), "capture" | "panel" | "settings") {
+    if directory().is_none() || !matches!(window.label(), "capture" | "panel") {
         return Err("Observation réservée à la sonde".into());
     }
     DOM_OBSERVATIONS
@@ -607,28 +607,31 @@ async fn run(app: &AppHandle, directory: &std::path::Path) -> Result<Report, Str
         return Err("La capture masquée a été recréée".into());
     }
     open(app, Surface::Panel).await?;
-    open(app, Surface::Settings).await?;
-    let settings_layout = dom_state(app, Surface::Settings, "(() => { const surface = document.querySelector('.surface'); const buttons = [...document.querySelectorAll('button')].filter(button => button.textContent.trim() === 'Enregistrer'); const last = buttons[buttons.length - 1]; return { viewportHeight: innerHeight, surfaceClientHeight: surface.clientHeight, surfaceScrollHeight: surface.scrollHeight, lastSaveButtonBottom: last ? last.getBoundingClientRect().bottom : null }; })()").await?;
-    if visible_windows(app)? != 2
-        || app.webview_windows().len() != if mode == WindowMode::Hide { 3 } else { 2 }
+    on_main(app, |app| {
+        surfaces::show_settings(app).map_err(|error| error.to_string())
+    })
+    .await?;
+    let settings_layout = dom_state(app, Surface::Panel, "(() => { const surface = document.querySelector('.surface'); const buttons = [...document.querySelectorAll('button')].filter(button => button.textContent.trim() === 'Enregistrer'); const last = buttons[buttons.length - 1]; return { viewportHeight: innerHeight, surfaceClientHeight: surface.clientHeight, surfaceScrollHeight: surface.scrollHeight, lastSaveButtonBottom: last ? last.getBoundingClientRect().bottom : null }; })()").await?;
+    if visible_windows(app)? != 1
+        || app.webview_windows().len() != if mode == WindowMode::Hide { 2 } else { 1 }
     {
-        return Err("Deux surfaces distinctes attendues".into());
+        return Err("Les paramètres doivent réutiliser la fenêtre du panneau".into());
     }
     if mode == WindowMode::Hide {
         on_main(app, |app| {
-            app.get_webview_window("settings")
+            app.get_webview_window("panel")
                 .ok_or("Paramètres absents")?
                 .close()
                 .map_err(|error| error.to_string())
         })
         .await?;
         wait_until(|| {
-            app.get_webview_window("settings")
+            app.get_webview_window("panel")
                 .is_some_and(|window| !window.is_visible().unwrap_or(true))
         })
         .await?;
     } else {
-        close(app, Surface::Settings, mode).await?;
+        close(app, Surface::Panel, mode).await?;
     }
     close(app, Surface::Panel, mode).await?;
     if visible_windows(app)? != 0 {
@@ -644,7 +647,7 @@ async fn run(app: &AppHandle, directory: &std::path::Path) -> Result<Report, Str
                 .is_some_and(|window| window.is_visible().unwrap_or(false))
         })
         .await?;
-        if app.webview_windows().len() != 3 {
+        if app.webview_windows().len() != 2 {
             return Err("Le panneau a été dupliqué".into());
         }
         on_main(app, |app| {

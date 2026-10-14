@@ -31,7 +31,7 @@ pnpm run desktop:dev
 
 Chaque push et pull request construit l'application sur Linux et Windows. Un tag de version `X.Y.Z` (par exemple `0.1.0`) déclenche en plus la création de la release GitHub correspondante, avec les paquets Linux `.deb` et `.AppImage`, ainsi que les installateurs Windows `.msi` et `.exe` (NSIS).
 
-Le programme reprend `config.toml` et `tasks.md` dans le répertoire de configuration habituel. Il démarre sans fenêtre. Le tray ouvre les trois surfaces ; Échap, le bouton de fermeture ou une fermeture native masque la fenêtre sans arrêter l'application. Elle est réutilisée au prochain appel, avec un brouillon neuf. « Quitter » arrête le cœur résident.
+Le programme reprend `config.toml` et `tasks.md` dans le répertoire de configuration habituel. Il démarre sans fenêtre. Le tray ouvre la capture ou le panneau ; les paramètres remplacent le contenu du panneau dans cette même fenêtre. Échap, le bouton de fermeture ou une fermeture native masque la fenêtre sans arrêter l'application. Elle est réutilisée au prochain appel, avec un brouillon neuf. « Quitter » arrête le cœur résident.
 
 ## Parcours fonctionnels
 

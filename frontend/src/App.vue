@@ -5,7 +5,7 @@ import { listen, type UnlistenFn } from "@tauri-apps/api/event"
 import Icon from "./Icon.vue"
 import SyntaxHelp from "./SyntaxHelp.vue"
 
-type Surface = "capture" | "panel" | "settings"
+type Surface = "capture" | "panel"
 interface Source { generation: number; revision: number }
 interface DesktopStatus { version: number; tasksFile: string; taskCount: number; revision: number; today: string; autostart: boolean; captureShortcut: string; panelShortcut: string; captureActive: boolean; panelActive: boolean; repositoryError: string | null }
 interface Row { position: number; section: string; title: string; tags: string[]; planned: string | null; deadline: string | null; deadlineTone: string | null; completed: boolean; completedDate: string | null; editDraft: string }
@@ -13,7 +13,7 @@ interface TaskView { version: number; source: Source; today: string; nextWorkday
 interface Editor { position: number; source: Source; draft: string; invalidated: boolean }
 const params = new URLSearchParams(location.search)
 const requestedSurface = params.get("surface")
-const surface: Surface = requestedSurface === "capture" || requestedSurface === "settings" ? requestedSurface : "panel"
+const surface: Surface = requestedSurface === "capture" ? requestedSurface : "panel"
 const session = Number(params.get("session"))
 const status = ref<DesktopStatus | null>(null)
 const view = ref<TaskView | null>(null)
@@ -29,6 +29,7 @@ const help = ref(false)
 const editor = ref<Editor | null>(null)
 const pending = ref(false)
 const settingsPending = ref(false)
+const settingsView = ref(false)
 const selected = ref<number | null>(null)
 const captureInput = ref<HTMLInputElement | null>(null)
 const editorInput = ref<HTMLInputElement | null>(null)
@@ -66,7 +67,7 @@ function syncSettings() {
   panelShortcut.value = status.value.panelShortcut
 }
 async function refresh() {
-  if (surface !== "panel" || disposed) return
+  if (surface !== "panel" || settingsView.value || disposed) return
   const sequence = ++requests
   try {
     const latest = await invoke<TaskView>("task_view", { request: request() })
@@ -86,9 +87,10 @@ function resetTransientState() {
   searching.value = false; adding.value = false; help.value = false; editor.value = null
   error.value = ""; success.value = ""; selected.value = null; pending.value = false
 }
-async function opened(event: { activation: number; reset: boolean }) {
+async function opened(event: { activation: number; reset: boolean; settings?: boolean }) {
   activation = event.activation
   visible = true
+  settingsView.value = event.settings ?? false
   if (event.reset) { resetTransientState(); syncSettings() }
   await refresh()
   await nextTick()
@@ -102,7 +104,9 @@ async function run(command: string, args?: Record<string, unknown>): Promise<boo
   try { if (args) await invoke(command, args); else await invoke(command); return true }
   catch (cause) { error.value = String(cause); return false }
 }
-function open(target: Surface) { void run("open_surface", { surface: target }) }
+function open(target: Surface | "settings") {
+  void run(target === "settings" ? "open_settings" : "open_surface", target === "settings" ? undefined : { surface: target })
+}
 // Une action explicite de l'utilisateur ferme la surface actuellement affichée.
 // La fermeture identifiée reste réservée aux retours asynchrones (par exemple
 // après l'enregistrement d'une capture), qui ne doivent jamais fermer une
@@ -202,7 +206,7 @@ function keydown(event: KeyboardEvent) {
     else closeCurrentSurface()
     return
   }
-  if (surface !== "panel") return
+  if (surface !== "panel" || settingsView.value) return
   if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "f") { event.preventDefault(); void beginSearch(); return }
   if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "h") { event.preventDefault(); toggleHistory(); return }
   if (field || target?.closest("button") || editor.value || adding.value) return
@@ -282,18 +286,19 @@ onUnmounted(() => { disposed = true; for (const stop of unlisteners) stop(); res
     </div>
 
     <template v-else>
-      <header><h1>{{ surface === 'settings' ? "Paramètres" : history ? "Historique" : "Mes tâches" }}</h1>
+      <header><h1>{{ settingsView ? "Paramètres" : history ? "Historique" : "Mes tâches" }}</h1>
         <nav aria-label="Actions">
-          <button v-if="surface === 'panel' && history" aria-label="Retour aux tâches" @click="toggleHistory"><Icon name="back" /></button>
-          <button v-if="surface === 'panel'" aria-label="Rechercher" title="Rechercher · Ctrl+F" @click="beginSearch"><Icon name="search" /></button>
-          <button v-if="surface === 'panel' && !history" aria-label="Historique" title="Historique · Ctrl+H" @click="toggleHistory"><Icon name="history" /></button>
-          <button v-if="surface === 'panel'" aria-label="Ouvrir les paramètres" @click="open('settings')"><Icon name='settings' /></button>
+          <button v-if="settingsView" aria-label="Retour aux tâches" @click="open('panel')"><Icon name="back" /></button>
+          <button v-if="!settingsView && history" aria-label="Retour aux tâches" @click="toggleHistory"><Icon name="back" /></button>
+          <button v-if="!settingsView" aria-label="Rechercher" title="Rechercher · Ctrl+F" @click="beginSearch"><Icon name="search" /></button>
+          <button v-if="!settingsView && !history" aria-label="Historique" title="Historique · Ctrl+H" @click="toggleHistory"><Icon name="history" /></button>
+          <button v-if="!settingsView" aria-label="Ouvrir les paramètres" @click="open('settings')"><Icon name='settings' /></button>
           <button type="button" aria-label="Fermer" @click="closeCurrentSurface"><Icon name="close" /></button>
         </nav>
       </header>
       <p v-if="error || status?.repositoryError" role="alert" class="error">{{ error || status?.repositoryError }}</p>
       <p v-if="success" role="status" class="success">{{ success }}</p>
-      <template v-if="surface === 'panel'">
+      <template v-if="!settingsView">
         <div v-if="searching || query" class="search-bar"><label class="sr-only" for="search">Rechercher dans le titre et les tags</label><input id="search" ref="searchInput" v-model="query" placeholder="Rechercher un titre ou un tag" @keydown.enter.prevent="searching = false; focusList()" /><button aria-label="Fermer la recherche" @click="query = ''; searching = false; focusList()"><Icon name="close" /></button></div>
         <div v-if='tag' class="filter"><span>Filtre : #{{ tag }}</span><button class="secondary" @click="tag = null">Retirer le filtre</button></div>
         <form v-if="editor" class="composer" @submit.prevent="submitEdit">

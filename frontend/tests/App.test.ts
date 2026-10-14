@@ -9,7 +9,7 @@ async function open(surface: 'capture' | 'panel' | 'settings') {
   window.history.replaceState({}, '', `/?surface=${surface}&session=3`)
   wrapper = mount(App, { attachTo: document.body })
   await flushPromises()
-  emit('surface-opened', { activation: 10, reset: true })
+  emit('surface-opened', { activation: 10, reset: true, settings: surface === 'settings' })
   await flushPromises()
   return wrapper
 }
@@ -391,7 +391,7 @@ describe('paramètres', () => {
     desktop.invoke.mockImplementation(async command => command === 'settings_choose' ? chosen.promise : command === 'desktop_status' ? status : undefined)
     const choose = app.findAll('button').find(button => button.text() === 'Choisir un fichier…')!
     await choose.trigger('click')
-    emit('surface-closed', 10); emit('surface-opened', { activation: 11, reset: true }); await flushPromises()
+    emit('surface-closed', 10); emit('surface-opened', { activation: 11, reset: true, settings: true }); await flushPromises()
     chosen.resolve('/tmp/ancienne-selection.md'); await flushPromises()
     expect(app.get<HTMLInputElement>('#file-path').element.value).toBe(status.tasksFile)
     expect(desktop.invoke.mock.calls.filter(([command]) => command === 'settings_source')).toHaveLength(0)
@@ -404,7 +404,7 @@ describe('paramètres', () => {
     desktop.invoke.mockImplementation(async command => command === 'settings_shortcut' ? saved.promise : command === 'desktop_status' ? status : undefined)
     app.get('#capture-shortcut').element.closest('form')!.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }))
     await flushPromises()
-    emit('surface-closed', 10); emit('surface-opened', { activation: 11, reset: true }); await flushPromises()
+    emit('surface-closed', 10); emit('surface-opened', { activation: 11, reset: true, settings: true }); await flushPromises()
     saved.reject(new Error('Ancienne erreur de paramètres')); await flushPromises()
     expect(app.find('[role=alert]').exists()).toBe(false)
     expect(app.get<HTMLButtonElement>('#capture-shortcut + button').element.disabled).toBe(false)

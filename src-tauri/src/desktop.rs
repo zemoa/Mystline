@@ -413,7 +413,7 @@ async fn event_loop(app: AppHandle, mut receiver: tokio::sync::mpsc::UnboundedRe
                         Event::Capture => surfaces::open(&handle, Surface::Capture),
                         Event::Panel => surfaces::toggle_panel(&handle),
                         Event::OpenPanel => surfaces::open(&handle, Surface::Panel),
-                        Event::Settings => surfaces::open(&handle, Surface::Settings),
+                        Event::Settings => surfaces::show_settings(&handle),
                         _ => Ok(()),
                     };
                     if let Err(error) = result {
@@ -772,6 +772,7 @@ pub fn run() -> Result<(), Box<dyn std::error::Error>> {
         settings_choose,
         surfaces::surface_ready,
         surfaces::open_surface,
+        surfaces::open_settings,
         surfaces::close_surface,
         surfaces::close_current_surface,
         crate::probe::probe_capture_state,
@@ -792,6 +793,7 @@ pub fn run() -> Result<(), Box<dyn std::error::Error>> {
         settings_choose,
         surfaces::surface_ready,
         surfaces::open_surface,
+        surfaces::open_settings,
         surfaces::close_surface,
         surfaces::close_current_surface,
         surfaces::capture_layout

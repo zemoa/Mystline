@@ -994,7 +994,7 @@ Le tray ne contient :
 
 ## 24. Cycle de vie des surfaces
 
-Le cœur Tauri démarre sans fenêtre visible. La capture, le panneau et les paramètres sont créés à leur première ouverture, puis conservés et masqués à la fermeture. L'historique reste une vue du panneau.
+Le cœur Tauri démarre sans fenêtre visible. La capture et le panneau sont créés à leur première ouverture, puis conservés et masqués à la fermeture. Les paramètres et l'historique sont des vues du panneau : les paramètres remplacent son contenu dans la même fenêtre native.
 
 La stratégie de conservation et masquage après première ouverture a été validée pour D7 après le test comparatif du lot 1. Elle privilégie les réouvertures et ne crée pas de WebView avant le premier appel de sa surface.
 
