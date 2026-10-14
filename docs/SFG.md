@@ -282,7 +282,7 @@ Un token littéral peut être échappé : `\#mission` conserve `#mission` dans l
 
 L’utilisateur ne doit pas avoir à mémoriser immédiatement toutes les commandes.
 
-Depuis la zone de saisie ou d’édition, un raccourci clavier permet d’afficher une aide compacte.
+Depuis la fenêtre principale, la zone de saisie ou d’édition, `F1` permet d’afficher ou de fermer une aide compacte.
 
 Cette aide présente notamment :
 

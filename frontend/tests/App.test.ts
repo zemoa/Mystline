@@ -36,6 +36,18 @@ afterEach(() => {
 })
 
 describe('surfaces Vue réutilisées', () => {
+  it('ouvre et ferme l’aide depuis le panneau principal avec F1', async () => {
+    // RG-F2-07 — Étant donné le panneau principal affichant les tâches.
+    const app = await open('panel')
+    // Quand F1 est pressée, puis Échap.
+    key('F1'); await flushPromises()
+    expect(app.get('[aria-label="Aide à la saisie"]').text()).toContain('/p')
+    key('Escape'); await flushPromises()
+    // Alors l’aide se ferme sans masquer le panneau.
+    expect(app.find('[aria-label="Aide à la saisie"]').exists()).toBe(false)
+    expect(desktop.invoke.mock.calls.filter(([command]) => command === 'close_current_surface')).toHaveLength(0)
+  })
+
   it('focalise la capture, conserve le brouillon au focus et le retire lors de la fermeture courante', async () => {
     // F1/F5 — Étant donné une capture ouverte et son brouillon non enregistré.
     const app = await open('capture')

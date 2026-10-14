@@ -195,7 +195,7 @@ function keydown(event: KeyboardEvent) {
   if (event.isComposing) return
   const target = event.target as HTMLElement | null
   const field = target?.tagName === "INPUT" || target?.tagName === "TEXTAREA"
-  if (event.key === "F1" && (surface === "capture" || editor.value || adding.value)) { event.preventDefault(); help.value = !help.value; return }
+  if (event.key === "F1" && (surface === "capture" || !settingsView.value)) { event.preventDefault(); help.value = !help.value; return }
   if (event.key === "Escape") {
     event.preventDefault()
     if (help.value) help.value = false
@@ -301,6 +301,7 @@ onUnmounted(() => { disposed = true; for (const stop of unlisteners) stop(); res
       <template v-if="!settingsView">
         <div v-if="searching || query" class="search-bar"><label class="sr-only" for="search">Rechercher dans le titre et les tags</label><input id="search" ref="searchInput" v-model="query" placeholder="Rechercher un titre ou un tag" @keydown.enter.prevent="searching = false; focusList()" /><button aria-label="Fermer la recherche" @click="query = ''; searching = false; focusList()"><Icon name="close" /></button></div>
         <div v-if='tag' class="filter"><span>Filtre : #{{ tag }}</span><button class="secondary" @click="tag = null">Retirer le filtre</button></div>
+        <SyntaxHelp v-if="help && !editor && !adding" />
         <form v-if="editor" class="composer" @submit.prevent="submitEdit">
           <label for="edit">Modifier la tâche</label><input id="edit" ref="editorInput" v-model="editor.draft" :readonly="pending" autocomplete="off" />
           <SyntaxHelp v-if="help" /><p class="muted">Entrée pour enregistrer · Échap pour annuler · F1 pour l’aide</p>
@@ -330,7 +331,7 @@ onUnmounted(() => { disposed = true; for (const stop of unlisteners) stop(); res
             </article>
           </section>
         </div>
-        <footer><button v-if="!history" class="primary add-task" :disabled="adding || !!editor" @click="beginAdd"><Icon name="add" />Ajouter une tâche</button><span v-if="view?.busy" class="muted" role="status">Enregistrement…</span><span v-else class="muted">↑ ↓ naviguer · Espace cocher</span></footer>
+        <footer><button v-if="!history" class="primary add-task" :disabled="adding || !!editor" @click="beginAdd"><Icon name="add" />Ajouter une tâche</button><span v-if="view?.busy" class="muted" role="status">Enregistrement…</span><span v-else class="muted">↑ ↓ naviguer · Espace cocher · F1 aide</span></footer>
         <button v-if="recovered.length" class="secondary" :disabled="!canRecover" @click="recoverDraft">Récupérer une saisie non enregistrée</button>
       </template>
       <div v-else class="settings-body">
