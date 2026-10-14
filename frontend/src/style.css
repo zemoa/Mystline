@@ -22,7 +22,8 @@ button, input { font: inherit; }
 button { cursor: pointer; border: 0; border-radius: 7px; background: transparent; color: var(--muted); }
 button:hover { background: var(--selected); color: var(--primary); }
 button:disabled { opacity: .5; cursor: default; }
-button:focus-visible, .task-list:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
+button:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
+.task-list:focus { outline: none; }
 svg { width: 20px; height: 20px; flex-shrink: 0; fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
 .surface { padding: 24px; height: 100vh; overflow: auto; background: var(--surface); }
 .panel { display: flex; flex-direction: column; }
