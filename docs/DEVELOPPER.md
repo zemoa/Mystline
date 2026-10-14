@@ -29,7 +29,7 @@ versions des paquets locaux dans les deux `Cargo.lock` et dans `pnpm-lock.yaml` 
 
 Le skill local [`mystline-release`](../.agents/skills/mystline-release/SKILL.md), invoqué avec
 `$mystline-release`, analyse les changements depuis le dernier tag de la branche avec le
-modèle Terra et un effort `medium`, puis prépare et publie la release. Dans `X.Y.Z`, seul
+modèle `gpt-6.1-sol` et un effort `low`, puis prépare et publie la release. Dans `X.Y.Z`, seul
 l'utilisateur décide d'un changement de `X`. Une fonctionnalité significative augmente `Y`
 et remet `Z` à zéro ; les corrections et toutes petites fonctionnalités augmentent `Z`.
 Une release mêlant fonctionnalités significatives et corrections augmente `Y`.

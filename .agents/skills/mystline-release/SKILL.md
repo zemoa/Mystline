@@ -1,6 +1,6 @@
 ---
 name: mystline-release
-description: Préparer et publier une release Mystline depuis la branche courante, avec analyse Terra en effort medium, choix de version, commit, push, tag et changelog GitHub.
+description: Préparer et publier une release Mystline depuis la branche courante, avec analyse gpt-6.1-sol en effort low, choix de version, commit, push, tag et changelog GitHub.
 ---
 
 # Release Mystline
@@ -9,9 +9,9 @@ Effectuer la release lorsque l'utilisateur la demande. Créer ou modifier ce ski
 
 Lire `AGENTS.md`, `docs/DEVELOPPER.md` et `.github/workflows/ci.yml`. Consulter `docs/SFG.md` et les documents fonctionnels concernés pour qualifier les changements. Préfixer les commandes shell avec `rtk`, ou `rtk proxy` si nécessaire.
 
-## 1. Lister les changements avec Terra
+## 1. Lister les changements avec gpt-6.1-sol
 
-Exécuter cette analyse avec le **modèle Terra** et un effort **medium**, via la délégation disponible et l'identifiant réel proposé par l'environnement. Ne pas inventer d'identifiant, d'alias ou de champ de configuration du skill. Si Terra ou l'effort medium n'est pas disponible, le signaler et demander un modèle de remplacement avant de poursuivre l'analyse ; ne pas substituer silencieusement un autre modèle.
+Exécuter cette analyse exclusivement avec le **modèle `gpt-6.1-sol`** et un effort **`low`**, via la délégation disponible et l'identifiant réel proposé par l'environnement. Ne pas inventer d'identifiant, d'alias ou de champ de configuration du skill. Si `gpt-6.1-sol` ou l'effort `low` n'est pas disponible, le signaler et demander un modèle de remplacement avant de poursuivre l'analyse ; ne pas substituer silencieusement un autre modèle.
 
 Avant de modifier les versions :
 
@@ -19,9 +19,9 @@ Avant de modifier les versions :
 2. Vérifier index et worktree. Ne pas intégrer des modifications préexistantes sans instruction sur leur inclusion. Continuer les lectures indépendantes si une clarification est nécessaire.
 3. Récupérer tags et références distantes : `rtk git fetch REMOTE --tags`. Compléter l'historique d'un checkout superficiel si nécessaire. Ne pas supprimer ou remplacer de tag, forcer un push ou réécrire l'historique.
 4. Trouver le dernier tag de release accessible depuis HEAD avec `rtk git describe --tags --abbrev=0 --match '[0-9]*.[0-9]*.[0-9]*' HEAD`. Valider le format exact `^[0-9]+\.[0-9]+\.[0-9]+$` ; si le tag ne convient pas, rechercher le précédent en excluant les tags non conformes. Choisir le tag le plus proche dans l'historique de la branche, pas un tag d'une autre branche.
-5. Fournir à Terra le tag, le SHA de HEAD, les résultats de `git log TAG..HEAD`, `git diff --stat TAG HEAD`, `git diff --name-status TAG HEAD`, et les diffs détaillés nécessaires. Sans tag accessible, analyser l'historique et le contenu depuis le début du projet et annoncer une première release.
+5. Fournir à gpt-6.1-sol le tag, le SHA de HEAD, les résultats de `git log TAG..HEAD`, `git diff --stat TAG HEAD`, `git diff --name-status TAG HEAD`, et les diffs détaillés nécessaires. Sans tag accessible, analyser l'historique et le contenu depuis le début du projet et annoncer une première release.
 
-Déléguer uniquement l'analyse en lecture seule. Demander à Terra une liste des fonctionnalités, petites améliorations, corrections et changements de maintenance, avec références aux commits/fichiers, impact utilisateur, ruptures éventuelles et recommandation de version motivée. Vérifier les changements effectifs : les messages de commits seuls ne suffisent pas, et les changements annulés ne sont pas des nouveautés.
+Déléguer uniquement l'analyse en lecture seule. Demander à gpt-6.1-sol une liste des fonctionnalités, petites améliorations, corrections et changements de maintenance, avec références aux commits/fichiers, impact utilisateur, ruptures éventuelles et recommandation de version motivée. Vérifier les changements effectifs : les messages de commits seuls ne suffisent pas, et les changements annulés ne sont pas des nouveautés.
 
 Afficher cette liste à l'utilisateur **avant** toute modification de version. Ne pas créer une release vide. Conserver le SHA analysé et refaire l'analyse si HEAD évolue avant le commit de release.
 
