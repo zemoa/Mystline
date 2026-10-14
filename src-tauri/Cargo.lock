@@ -2384,7 +2384,7 @@ dependencies = [
 
 [[package]]
 name = "mystline"
-version = "0.1.0"
+version = "1.0.1"
 dependencies = [
  "blake3",
  "chrono",
@@ -2400,7 +2400,7 @@ dependencies = [
 
 [[package]]
 name = "mystline-desktop"
-version = "0.1.0"
+version = "1.0.1"
 dependencies = [
  "ashpd",
  "chrono",
