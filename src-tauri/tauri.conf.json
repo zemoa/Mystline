@@ -17,6 +17,22 @@
   },
   "bundle": {
     "active": true,
-    "icon": ["icons/icon.png", "icons/icon.ico"]
+    "icon": [
+      "icons/icon.png",
+      "icons/icon.ico"
+    ],
+    "createUpdaterArtifacts": true
+  },
+  "plugins": {
+    "updater": {
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDlEMzNDNUNDMTk1NkMzQUUKUldTdXcxWVp6TVV6bmRISkdsbGgyQ2FjaGR0ZXRXckduT0J3aUZSRFlQM2FhVU15S3I2bWVucVcK",
+      "endpoints": [
+        "https://github.com/zemoa/Mystline/releases/latest/download/latest.json"
+      ],
+      "requireSignedVersion": true,
+      "windows": {
+        "installMode": "passive"
+      }
+    }
   }
 }

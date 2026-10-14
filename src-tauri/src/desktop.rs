@@ -107,6 +107,26 @@ pub fn desktop_status(app: AppHandle) -> DesktopStatus {
     }
 }
 
+pub fn install_update(
+    app: &AppHandle,
+    update: &tauri_plugin_updater::Update,
+    bytes: &[u8],
+) -> Result<(), String> {
+    let resident = app.state::<Mutex<Resident>>();
+    let state = resident.lock().map_err(|error| error.to_string())?;
+    if state.runtime.tasks.is_busy() || state.quit_pending {
+        return Err("Attendez la fin de l’enregistrement avant de redémarrer.".into());
+    }
+    if app
+        .get_webview_window("capture")
+        .is_some_and(|window| window.is_visible().unwrap_or(true))
+    {
+        return Err("Fermez ou enregistrez la capture avant de redémarrer.".into());
+    }
+    update.install(bytes).map_err(|error| error.to_string())?;
+    app.restart();
+}
+
 fn publish(app: &AppHandle) {
     let _ = app.emit("desktop-status", desktop_status(app.clone()));
     let _ = app.emit("task-changed", ());
@@ -749,6 +769,7 @@ pub fn run() -> Result<(), Box<dyn std::error::Error>> {
     let mut builder = tauri::Builder::default()
         .plugin(tauri_plugin_single_instance::init(|_, _, _| {}))
         .plugin(tauri_plugin_dialog::init())
+        .plugin(tauri_plugin_updater::Builder::new().build())
         .plugin(
             tauri_plugin_autostart::Builder::new()
                 .app_name("mystline")
@@ -758,9 +779,13 @@ pub fn run() -> Result<(), Box<dyn std::error::Error>> {
         builder = builder.plugin(tauri_plugin_global_shortcut::Builder::new().build());
     }
     let builder = builder.manage(Mutex::new(Surfaces::default()));
+    let builder = builder.manage(crate::updates::Updates::default());
     #[cfg(debug_assertions)]
     let builder = builder.invoke_handler(tauri::generate_handler![
         desktop_status,
+        crate::updates::update_status,
+        crate::updates::update_check,
+        crate::updates::update_install,
         task_view,
         task_create,
         task_update,
@@ -782,6 +807,9 @@ pub fn run() -> Result<(), Box<dyn std::error::Error>> {
     #[cfg(not(debug_assertions))]
     let builder = builder.invoke_handler(tauri::generate_handler![
         desktop_status,
+        crate::updates::update_status,
+        crate::updates::update_check,
+        crate::updates::update_install,
         task_view,
         task_create,
         task_update,
@@ -858,6 +886,7 @@ pub fn run() -> Result<(), Box<dyn std::error::Error>> {
                 _watcher: watcher,
             }));
             let handle = app.handle().clone();
+            crate::updates::start(handle.clone());
             tauri::async_runtime::spawn(event_loop(handle.clone(), receiver));
             // Ferme l'intervalle entre lecture initiale et installation du watcher.
             emit(Event::FileChanged);

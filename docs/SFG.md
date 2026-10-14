@@ -104,6 +104,20 @@ Par défaut, l’application démarre automatiquement à l’ouverture de la ses
 
 Les paramètres affichent également le nom de l'application et sa version.
 
+### Mises à jour de l’application
+
+Les distributions Windows et Linux AppImage vérifient au démarrage, puis toutes les 24 heures,
+la dernière release stable du dépôt GitHub `zemoa/Mystline`. Une version plus récente est
+téléchargée automatiquement et sa signature est vérifiée. Les paramètres indiquent son état
+et proposent **Installer et redémarrer** lorsque le téléchargement est prêt. Le redémarrage
+reste déclenché par l’utilisateur ; il est refusé tant qu’un enregistrement est en cours ou
+que la capture rapide est ouverte. Les paramètres permettent aussi de relancer la vérification.
+
+Une absence de connexion ou une release indisponible n’empêche jamais de gérer les tâches.
+Les échanges réseau concernent uniquement les versions et les installateurs ; aucune tâche
+ni configuration personnelle n’est transmise. Le paquet Linux `.deb` se met à jour par
+réinstallation. Les builds de développement ne vérifient pas les releases.
+
 Elle reste ensuite en arrière-plan.
 
 Elle ne doit pas afficher automatiquement sa fenêtre principale au démarrage.

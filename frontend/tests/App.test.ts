@@ -365,6 +365,40 @@ describe('panneau accessible au clavier', () => {
 })
 
 describe('paramètres', () => {
+  it('affiche une version téléchargée sans redémarrer et ignore un ancien état', async () => {
+    const app = await open('settings')
+    emit('update-status', { sequence: 4, phase: 'ready', version: '0.2.0', message: 'La version 0.2.0 est prête à être installée.' })
+    emit('update-status', { sequence: 3, phase: 'checking', version: null, message: 'Recherche…' })
+    await flushPromises()
+    expect(app.text()).toContain('0.2.0 est prête')
+    expect(desktop.invoke.mock.calls.some(([command]) => command === 'update_install')).toBe(false)
+    const install = app.findAll('button').find(button => button.text() === 'Installer et redémarrer')!
+    const confirmation = deferred<void>()
+    desktop.invoke.mockImplementation(async command => {
+      if (command === 'update_install') return confirmation.promise
+    })
+    await install.trigger('click')
+    expect(install.element.disabled).toBe(true)
+    confirmation.reject(new Error('Fermez ou enregistrez la capture avant de redémarrer.'))
+    await flushPromises()
+    expect(app.get('[role=alert]').text()).toContain('capture')
+    expect(install.element.disabled).toBe(false)
+    expect(app.text()).toContain('0.2.0 est prête')
+  })
+
+  it('permet de réessayer après une erreur réseau sans bloquer les paramètres', async () => {
+    const app = await open('settings')
+    emit('update-status', { sequence: 1, phase: 'error', version: null, message: 'Vérification impossible.' })
+    await flushPromises()
+    const check = app.findAll('button').find(button => button.text() === 'Vérifier les mises à jour')!
+    await check.trigger('click')
+    expect(desktop.invoke).toHaveBeenCalledWith('update_check')
+    emit('update-status', { sequence: 2, phase: 'downloading', version: '0.2.0', message: 'Téléchargement…' })
+    await flushPromises()
+    expect(check.element.disabled).toBe(true)
+    expect(app.get<HTMLButtonElement>('#capture-shortcut + button').element.disabled).toBe(false)
+  })
+
   it('présente les états actifs et conserve la combinaison refusée pour correction', async () => {
     const app = await open('settings')
     expect(app.get('#capture-shortcut').element).toHaveProperty('value', 'Ctrl+Shift+Espace')

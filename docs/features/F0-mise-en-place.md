@@ -18,7 +18,7 @@ Références : [SFG, §3–4 et §24](../SFG.md) ; [architecture, §2–5 et §1
 
 ## Règles de gestion
 
-- **RG-F0-01 — Exécution locale.** Les données restent sur la machine ; aucune fonction ne requiert de compte, de connexion Internet, de cloud ou de synchronisation.
+- **RG-F0-01 — Exécution locale.** Les données restent sur la machine ; la gestion des tâches ne requiert ni compte, ni connexion Internet, ni cloud, ni synchronisation. Seule la mise à jour de l’application utilise GitHub, conformément à la SFG ; son échec ne bloque pas l’usage local.
 - **RG-F0-02 — Processus résident.** L'application démarre à l'ouverture de session par défaut, sans montrer son panneau ou sa capture. Fermer une surface la masque et ne quitte pas le processus ; seule l'action explicite « Quitter » y met fin. Un second lancement dans la même session quitte silencieusement.
 - **RG-F0-03 — Configuration initiale.** La configuration est conservée dans `config.toml` dans le répertoire de configuration standard de l'utilisateur. Au premier lancement, une source locale `tasks.md` est créée si nécessaire dans un emplacement utilisateur, distinct de l'exécutable. Le chemin du fichier de tâches et l'activation du démarrage automatique sont conservés entre les sessions.
 - **RG-F0-04 — Source configurable.** Dans les paramètres, l'utilisateur peut créer un fichier de tâches à l'emplacement choisi ou sélectionner un fichier existant. Le nouveau fichier doit pouvoir être créé et chargé, ou le fichier existant doit être valide, avant de devenir la source active et avant l'enregistrement de son chemin. L'ancien fichier n'est jamais déplacé ni supprimé. En cas d'échec, la source actuelle reste active.

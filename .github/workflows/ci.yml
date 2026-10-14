@@ -118,6 +118,8 @@ jobs:
       contents: write
     strategy:
       fail-fast: false
+      # Chaque job fusionne latest.json avec celui de la plateforme précédente.
+      max-parallel: 1
       matrix:
         include:
           - name: Linux
@@ -157,13 +159,40 @@ jobs:
       - name: Install frontend dependencies
         run: pnpm install --frozen-lockfile
 
+      - name: Validate release version and signing key
+        shell: bash
+        env:
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+        run: |
+          node scripts/check-release.mjs "$GITHUB_REF_NAME"
+          test -n "$TAURI_SIGNING_PRIVATE_KEY" || { echo "Missing TAURI_SIGNING_PRIVATE_KEY secret"; exit 1; }
+
       - uses: tauri-apps/tauri-action@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
         with:
           tagName: ${{ github.ref_name }}
           releaseName: Mystline ${{ github.ref_name }}
           releaseBody: Distribution packages for ${{ github.ref_name }}.
-          releaseDraft: false
+          releaseDraft: true
           prerelease: false
+          uploadUpdaterJson: true
+          updaterJsonPreferNsis: true
           args: ${{ matrix.args }}
+
+  publish:
+    name: Publish complete release
+    if: startsWith(github.ref, 'refs/tags/')
+    needs: release
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Publish after both platforms are available
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: gh release edit "$RELEASE_TAG" --draft=false --latest

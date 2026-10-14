@@ -68,6 +68,9 @@ L'application :
 
 Toutes les données restent sur la machine.
 
+La vérification et le téléchargement des mises à jour applicatives utilisent GitHub quand
+une connexion est disponible. Cette dépendance est isolée de la gestion locale des tâches.
+
 ---
 
 ### 2.4 Séparation domaine / présentation
@@ -118,6 +121,25 @@ L'architecture doit permettre une utilisation principalement au clavier :
 - aide.
 
 Les raccourcis clavier déclenchent des intentions explicites plutôt que de contenir de la logique métier.
+
+### Mises à jour applicatives
+
+`src-tauri/src/updates.rs` porte la vérification et le téléchargement signés via le plugin
+Tauri updater, sans dépendance du domaine ou du repository. Un réveil toutes les 24 heures
+et une vérification au démarrage consultent le manifeste `latest.json` de la dernière release
+stable GitHub `zemoa/Mystline`. La version SemVer courante provient de la configuration Tauri ;
+seule une version supérieure est proposée. La clé publique embarquée valide la signature et
+la version signée de l’installateur. La clé privée reste dans les secrets de publication.
+
+Le téléchargement est automatique et conservé dans un fichier temporaire privé. Vue expose
+l’état via un snapshot et l’événement séquencé `update-status`. L’installation et le
+redémarrage sont une intention explicite depuis les paramètres ; le backend refuse une
+capture ouverte ou une opération de persistance en cours et verrouille le runtime pendant
+l’installation. Les erreurs réseau restent séparées des diagnostics du repository.
+
+L’updater est actif dans les distributions Windows et Linux AppImage en release. Les paquets
+`.deb` et les builds debug n’effectuent pas ces vérifications. La pipeline signe les artefacts,
+fusionne les entrées des deux plateformes dans `latest.json`, puis publie la release complète.
 
 ---
 
@@ -1246,7 +1268,7 @@ Ils ne doivent pas remettre en cause les frontières définies ici sans nouvelle
 | Reopen | Depuis le panneau quotidien uniquement |
 | Cloud | Aucun |
 | Compte | Aucun |
-| Dépendance Internet | Aucune |
+| Dépendance Internet | Aucune pour les tâches ; GitHub pour les mises à jour applicatives |
 
 ---
 

@@ -8,6 +8,7 @@ mod linux;
 mod probe;
 mod surfaces;
 mod tasks;
+mod updates;
 
 fn main() {
     desktop::run().expect("Impossible de démarrer Mystline");

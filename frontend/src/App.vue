@@ -8,6 +8,7 @@ import { version as appVersion } from "../../src-tauri/tauri.conf.json"
 
 type Surface = "capture" | "panel"
 interface Source { generation: number; revision: number }
+interface UpdateStatus { sequence: number; phase: string; version: string | null; message: string }
 interface DesktopStatus { version: number; tasksFile: string; taskCount: number; revision: number; today: string; autostart: boolean; captureShortcut: string; panelShortcut: string; captureActive: boolean; panelActive: boolean; repositoryError: string | null }
 interface Row { position: number; section: string; title: string; tags: string[]; planned: string | null; deadline: string | null; deadlineTone: string | null; completed: boolean; completedDate: string | null; editDraft: string }
 interface TaskView { version: number; source: Source; today: string; nextWorkday: string; busy: boolean; rows: Row[] }
@@ -17,6 +18,8 @@ const requestedSurface = params.get("surface")
 const surface: Surface = requestedSurface === "capture" ? requestedSurface : "panel"
 const session = Number(params.get("session"))
 const status = ref<DesktopStatus | null>(null)
+const updateStatus = ref<UpdateStatus | null>(null)
+const updatePending = ref(false)
 const view = ref<TaskView | null>(null)
 const error = ref("")
 const success = ref("")
@@ -70,6 +73,16 @@ function syncSettings() {
   filePath.value = status.value.tasksFile
   captureShortcut.value = status.value.captureShortcut
   panelShortcut.value = status.value.panelShortcut
+}
+function acceptUpdate(value: UpdateStatus | null) {
+  if (value && (!updateStatus.value || value.sequence >= updateStatus.value.sequence)) updateStatus.value = value
+}
+async function updateAction(command: "update_check" | "update_install") {
+  if (updatePending.value) return
+  updatePending.value = true
+  try { await invoke(command) }
+  catch (cause) { error.value = String(cause) }
+  finally { updatePending.value = false }
 }
 async function refresh() {
   if (surface !== "panel" || settingsView.value || disposed) return
@@ -262,8 +275,10 @@ onMounted(async () => {
     retainListener(await listen<number>("surface-closed", event => { if (event.payload === activation) { visible = false; resetTransientState() } }))
     retainListener(await listen<DesktopStatus>("desktop-status", event => { acceptStatus(event.payload) }))
     retainListener(await listen("task-changed", () => { void refresh() }))
+    retainListener(await listen<UpdateStatus>("update-status", event => { acceptUpdate(event.payload) }))
     if (disposed) return
     acceptStatus(await invoke<DesktopStatus>("desktop_status")); syncSettings()
+    acceptUpdate(await invoke<UpdateStatus>("update_status"))
     await refresh()
   } catch (cause) { error.value = String(cause) }
   await nextTick()
@@ -355,7 +370,14 @@ onUnmounted(() => { disposed = true; for (const stop of unlisteners) stop(); res
           <form @submit.prevent="setting('settings_shortcut', { capture: false, value: panelShortcut }, 'Raccourci du panneau enregistré.')"><label for="panel-shortcut">Ouvrir / masquer le panneau <span :class="['badge', { active: status?.panelActive }]">{{ status?.panelActive ? "Actif" : "Inactif" }}</span></label><div class="setting-input"><input id="panel-shortcut" v-model="panelShortcut" autocomplete="off" /><button class="secondary" :disabled="settingsPending">Enregistrer</button></div></form>
           <p class="muted">Exemple : Ctrl+Shift+Espace. Si un raccourci est inactif, utilisez l’icône de la zone de notification.</p>
         </section>
-        <p class="muted app-version">Mystline · Version {{ appVersion }}</p>
+        <section class="setting-section"><h2>Mises à jour</h2>
+          <p class="muted">Mystline · Version {{ appVersion }}</p>
+          <p role="status">{{ updateStatus?.message }}</p>
+          <div v-if="updateStatus && updateStatus.phase !== 'disabled'" class="form-actions">
+            <button v-if="updateStatus.phase === 'ready'" class="primary" :disabled="updatePending || settingsPending || pending || view?.busy || recovered.length > 0" @click="updateAction('update_install')">Installer et redémarrer</button>
+            <button v-else class="secondary" :disabled="updatePending || ['checking', 'downloading'].includes(updateStatus.phase)" @click="updateAction('update_check')">Vérifier les mises à jour</button>
+          </div>
+        </section>
       </div>
     </template>
   </main>

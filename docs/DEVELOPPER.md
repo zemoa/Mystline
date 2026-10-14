@@ -21,6 +21,50 @@ Après autorisation des deux raccourcis sous KDE, `cargo test --manifest-path sr
 
 Le workflow GitHub Actions construit l'application Tauri sur Linux et Windows pour chaque push et pull request. Sur Linux, il exécute aussi le formatage, Clippy, les tests Rust et les tests DOM Vue. Un push de tag `X.Y.Z` crée une release GitHub du même tag et y publie les paquets `.deb` et `.AppImage` pour Linux, ainsi que `.msi` et l'installeur NSIS `.exe` pour Windows. La version du tag doit être alignée avec les manifests avant de le pousser.
 
+La release reste en brouillon jusqu’à réussite des deux plateformes. Les jobs de packaging
+s’exécutent successivement pour fusionner `latest.json` sans écritures concurrentes ; le job
+final publie la release complète comme dernière release stable. `scripts/check-release.mjs`
+vérifie que le tag correspond à la version des cinq manifests. Mettre également à jour les
+versions des paquets locaux dans les deux `Cargo.lock` et dans `pnpm-lock.yaml` si nécessaire.
+
+### Signature et mises à jour GitHub
+
+Le plugin Rust `tauri-plugin-updater` consulte
+`https://github.com/zemoa/Mystline/releases/latest/download/latest.json`. Tauri Action génère
+ce manifeste et les signatures, avec NSIS comme installateur de mise à jour Windows et
+AppImage pour Linux. La configuration active `createUpdaterArtifacts` et
+`requireSignedVersion` : le fichier téléchargé et la version annoncée sont vérifiés avant
+l’installation. Voir les [instructions Tauri](https://v2.tauri.app/plugin/updater/).
+
+Le secret du dépôt `TAURI_SIGNING_PRIVATE_KEY` contient la clé privée de signature ;
+`TAURI_SIGNING_PRIVATE_KEY_PASSWORD` est facultatif pour une clé sans mot de passe. La clé
+publique correspondante est dans `src-tauri/tauri.conf.json`. La clé privée générée pour ce
+dépôt est conservée localement dans `.secrets/updater.key`, dossier ignoré par Git : en faire
+une sauvegarde sécurisée avant de nettoyer ou déplacer le checkout. Ne jamais la committer
+ni la remplacer pour une release ordinaire : les installations existantes font confiance
+à la clé publique initiale. Pour réapprovisionner le secret depuis cette sauvegarde :
+
+```sh
+gh secret set TAURI_SIGNING_PRIVATE_KEY --repo zemoa/Mystline < .secrets/updater.key
+```
+
+Le runtime vérifie au démarrage et toutes les 24 heures, même sans fenêtre ouverte. Le
+téléchargement vérifié reste dans un fichier temporaire privé jusqu’au redémarrage ou à la
+fermeture ; la mémoire du téléchargement est libérée après sa préparation. Les commandes
+`update_status`, `update_check`, `update_install` et l’événement `update-status` donnent son
+état aux WebViews, avec une séquence pour ignorer les anciens états. Une garde commune
+empêche plusieurs téléchargements ou installations simultanés. L’installation déclenchée
+depuis les paramètres verrouille le runtime jusqu’au redémarrage et refuse une écriture en
+cours ou une capture ouverte. Une erreur conserve le téléchargement pour réessayer.
+
+Les builds debug et Linux hors AppImage n’effectuent aucun accès réseau de mise à jour.
+Les tests ordinaires couvrent cette restriction et les interactions des paramètres. Avant
+distribution, valider le parcours réel entre deux releases signées de versions différentes
+sur Windows (NSIS et MSI) et Linux AppImage : détection, téléchargement, installation,
+redémarrage, conservation du fichier de tâches et de la configuration. Vérifier aussi le
+refus d’une signature invalide et l’usage hors connexion. Les mocks et la compilation ne
+remplacent pas ce parcours natif.
+
 Les contrôles Linux s'exécutent dans un job indépendant, en parallèle des deux compilations release sans packaging. La publication attend la réussite des trois jobs. Chaque job conserve son propre cache Rust ; dans la configuration de `Swatinem/rust-cache`, le chemin cible est relatif au projet Cargo : `src-tauri -> target` désigne donc `src-tauri/target`. Un nouveau push sur une même branche ou pull request annule l'exécution précédente encore en cours ; les exécutions de tags ne sont pas annulées.
 
 ## Sonde graphique debug
