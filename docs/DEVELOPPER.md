@@ -27,6 +27,16 @@ final publie la release complète comme dernière release stable. `scripts/check
 vérifie que le tag correspond à la version des cinq manifests. Mettre également à jour les
 versions des paquets locaux dans les deux `Cargo.lock` et dans `pnpm-lock.yaml` si nécessaire.
 
+Le skill local [`mystline-release`](../.agents/skills/mystline-release/SKILL.md), invoqué avec
+`$mystline-release`, analyse les changements depuis le dernier tag de la branche avec le
+modèle Terra et un effort `medium`, puis prépare et publie la release. Dans `X.Y.Z`, seul
+l'utilisateur décide d'un changement de `X`. Une fonctionnalité significative augmente `Y`
+et remet `Z` à zéro ; les corrections et toutes petites fonctionnalités augmentent `Z`.
+Une release mêlant fonctionnalités significatives et corrections augmente `Y`.
+Le changelog est conservé dans `docs/releases/X.Y.Z.md`, committé avec les versions, puis
+appliqué aux notes GitHub après réussite du workflow pour éviter que le packaging
+ne le remplace par son texte générique.
+
 ### Signature et mises à jour GitHub
 
 Le plugin Rust `tauri-plugin-updater` consulte
