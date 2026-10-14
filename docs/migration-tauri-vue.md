@@ -29,22 +29,26 @@ La migration prend comme base l'état du dossier, modifications non commitées c
 - Vérifier démarrage invisible, absence de duplication, focus, fermeture/réouverture et survie du cœur résident.
 - Mesurer mémoire au repos et délai d'ouverture.
 
-Les surfaces de ce lot sont des prototypes. La capture ne crée pas encore de tâche, le panneau ne rend pas encore la liste et les paramètres sont consultatifs. Le cœur et ses tests de comportements persistés restent disponibles. Aucun contrat de commandes de tâches Vue/Rust n'est encore figé.
+Les surfaces livrées par ce lot étaient des prototypes : capture sans création, panneau sans liste et paramètres consultatifs. Le cœur et ses tests de comportements persistés ont été conservés. Le contrat fonctionnel Vue/Rust est défini dans le portage autorisé le 13 octobre.
 
-## Lots suivants — Non autorisés pour implémentation
+## Portage fonctionnel autorisé — 13 octobre 2026
 
-1. Définir et faire valider le contrat des commandes de tâches, snapshots, erreurs et événements, y compris la resynchronisation de chaque nouvelle fenêtre.
+L'utilisateur a demandé d'implémenter les fonctionnalités manquantes avec trois agents dédiés à l'implémentation, la revue de code et les tests. Le superviseur coordonne l'équipe et tranche les désaccords ; une question produit importante que les références ne permettent pas de résoudre doit être soumise à l'utilisateur. Cette demande autorise les lots fonctionnels F0–F5, en conservant les décisions D1–D8 et les règles produit existantes.
+
+1. Définir le contrat des commandes de tâches, snapshots, erreurs et événements, y compris la resynchronisation de chaque nouvelle fenêtre.
 2. Porter la capture persistée et l'ajout intégré.
 3. Porter le panneau, l'édition, la recherche, les tags et les permutations.
 4. Porter la complétion, la réouverture quotidienne et l'historique.
 5. Porter la modification des paramètres et des raccourcis.
-6. Valider les parcours complets et décider du packaging Windows/Linux.
+6. Valider les parcours complets et consolider la présentation F5.
 
-Les choix supplémentaires et le passage à chaque lot font l'objet d'une validation utilisateur. L'architecture est la référence des décisions techniques ; la SFG et F0–F5 restent les références des comportements attendus.
+L'architecture est la référence des décisions techniques ; la SFG et F0–F5 restent les références des comportements attendus. Le packaging Windows/Linux reste un sujet distinct, sans choix de distribution arrêté par cette autorisation.
+
+L'avancement des agents est présenté dans le [tableau visuel](validation/migration-agents.html) et son [aperçu SVG](validation/migration-agents.svg). Les états sont actualisés par le superviseur aux jalons ; la réussite des tests initiaux ne vaut pas validation du portage.
 
 ## Validation et couverture
 
-Avant migration : 107 tests passaient. Les tests spécifiques aux widgets Iced ont été retirés avec leur implémentation. Ils ne sont pas considérés comme remplacés par les tests du socle : leur couverture clavier, sélection, aide, édition et défilement devra être rétablie pendant les lots de portage concernés.
+Avant migration : 107 tests passaient. Les tests spécifiques aux widgets Iced ont été retirés avec leur implémentation. Les tests du socle ne les remplaçaient pas : des tests DOM Vue et du contrat IPC ont été ajoutés pendant le portage fonctionnel. Les essais de focus natif et de défilement restent distincts des tests sans fenêtre.
 
 Les scénarios de domaine, repository, parsing, projections et persistance sont conservés. Les tests du snapshot optimiste sont déplacés dans `src/runtime/task_store.rs`. `src/runtime/coordinator.rs` vérifie la FIFO, la déduplication des validations et le refus d'un changement de source tant qu'une capture reste en attente. Le backend teste les réservations des fenêtres et les activations du tray Linux.
 
@@ -73,7 +77,7 @@ La PSS répartit les pages partagées entre les processus ; la somme des RSS, é
 
 Les clics et menus du tray, les raccourcis système, l'autostart et les interactions DOM de saisie restent à vérifier manuellement. La sonde a volontairement évité de modifier autostart et raccourcis. Aucune session graphique Windows/X11 n'a été validée.
 
-Le test comparatif avec réutilisation de fenêtres masquées a ensuite été autorisé par l'utilisateur. Les autres lots ne sont pas commencés.
+Le test comparatif avec réutilisation de fenêtres masquées a ensuite été autorisé par l'utilisateur. À cette étape, les autres lots n'étaient pas commencés.
 
 ## Comparaison D7 — Fenêtres détruites ou masquées
 
@@ -93,7 +97,7 @@ Focus natif, absence de doublons, second lancement silencieux et watcher valide/
 
 Les délais s'arrêtent au chargement Vue et au signal de visibilité native ; ils ne mesurent pas le rendu effectif des pixels à l'écran. Ces essais portent sur les prototypes en debug, pas sur l'interface fonctionnelle finale ni sur Windows/X11. L'écart mémoire observé reste modeste ; la réutilisation supprime surtout le coût de recréation lors des réouvertures.
 
-**Décision validée après comparaison :** conserver et masquer les fenêtres après leur première ouverture, pour privilégier les réouvertures. Le comportement normal applique désormais ce choix. Les fermetures natives sont interceptées et masquent la surface ; le panneau se bascule selon sa visibilité, et une activation distincte permet la remise à zéro des états transitoires sans effacer une saisie lors d'une simple demande de focus. Les autres lots restent non autorisés.
+**Décision validée après comparaison :** conserver et masquer les fenêtres après leur première ouverture, pour privilégier les réouvertures. Le comportement normal applique désormais ce choix. Les fermetures natives sont interceptées et masquent la surface ; le panneau se bascule selon sa visibilité, et une activation distincte permet la remise à zéro des états transitoires sans effacer une saisie lors d'une simple demande de focus. Les autres lots n'étaient pas encore autorisés à cette étape ; leur autorisation ultérieure est indiquée plus haut.
 
 ## Vérification du comportement D7 adopté
 
@@ -109,3 +113,22 @@ Le [rapport D7](validation/lot1-d7-adopted-wayland-debug.json) vérifie le chemi
 La première ouverture mesurée prend 207 ms ; les deux réouvertures prennent 0,28 et 0,35 ms jusqu'au signal de visibilité native. La mémoire après dix secondes est de 435 Mio PSS. Ces valeurs concernent toujours les prototypes en debug et ne remplacent pas les validations Windows/X11.
 
 Les 7 tests du backend passent, y compris fermeture avant chargement et distinction entre réouverture et simple focus. La construction frontend, Clippy et le contrôle release passent. Les observations DOM de la sonde sont exclues du profil release. La bibliothèque conserve ses 77 tests validés.
+
+## Bilan du portage fonctionnel — 13 octobre 2026
+
+| Feature | Comportement porté |
+| --- | --- |
+| F0 | Changement transactionnel du fichier, création ou choix natif, autostart modifiable, intégrations desktop conservées. |
+| F1 | Capture persistée en FIFO, fermeture après confirmation, ajout intégré et consultation des tâches. |
+| F2 | Métadonnées, aide F1, quatre sections, édition, recherche, tags, filtres et réordonnancement clavier. |
+| F3 | Complétion et réouverture quotidiennes, historique consultatif, projections au changement de jour. |
+| F4 | Raccourcis persistés, collision refusée, remplacement par action et état actif/inactif. |
+| F5 | Palette claire, contrôles et SVG communs, tags colorés, états distincts, capture dimensionnée pour aide/erreur et listes défilantes. |
+
+Le contrat IPC et les règles de resynchronisation sont décrits dans l'architecture, §9.2. Les propositions optimistes, confirmations et erreurs restent gérées par Rust. Les fenêtres et les promesses Vue vérifient la session et l'activation pour ne pas affecter une surface rouverte. La récupération d'une ancienne saisie échouée préserve les autres brouillons.
+
+La revue indépendante a identifié et fait corriger les risques de versions obsolètes, de fermetures retardées, de perte de brouillons, de focus, de sélection après déplacement, de réponses de paramètres et de renouvellement des raccourcis. Le repository, le watcher et la configuration sont alignés sur le même chemin canonique. Aucun défaut bloquant restant n'a été identifié lors de la revue finale du code.
+
+La construction frontend TypeScript/Vite, les contrôles backend dev/release, Clippy des deux crates et le contrôle Windows GNU de la bibliothèque passent. Les derniers compteurs observés sont 80 tests Rust, 14 tests backend et 22 tests DOM Vue. Les régressions finales vérifient aussi les gardes de fermeture native, la récupération de brouillons et les réponses retardées des actions et dialogues.
+
+La sonde fonctionnelle debug est écrite et son lancement graphique nécessite une autorisation du sandbox. Aucun résultat natif du portage n'est encore présenté comme validé. Les intégrations réelles du tray, des raccourcis, de l'autostart et des dialogues doivent également être essayées dans les sessions Windows, X11 et Wayland ; une sonde isolée qui inhibe les modifications système ne les valide pas. Le packaging reste à décider séparément.

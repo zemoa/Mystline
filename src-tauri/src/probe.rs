@@ -207,6 +207,13 @@ struct Report {
     panel_toggle_reopens_same_window: bool,
     native_close_masks_settings: bool,
     capture_escape_masks_window: bool,
+    functional_capture_confirmed: bool,
+    invalid_capture_preserves_draft: bool,
+    completion_and_history_persisted: bool,
+    stale_ipc_rejected: bool,
+    source_switch_transactional: bool,
+    isolated_settings_persisted: bool,
+    settings_layout: serde_json::Value,
 }
 
 struct CaptureState {
@@ -217,6 +224,84 @@ struct CaptureState {
 type ObservationSenders = Mutex<HashMap<u64, tokio::sync::oneshot::Sender<CaptureState>>>;
 static OBSERVATIONS: OnceLock<ObservationSenders> = OnceLock::new();
 static OBSERVATION_SEQUENCE: AtomicU64 = AtomicU64::new(0);
+
+type DomObservationSenders = Mutex<HashMap<u64, tokio::sync::oneshot::Sender<serde_json::Value>>>;
+static DOM_OBSERVATIONS: OnceLock<DomObservationSenders> = OnceLock::new();
+
+#[tauri::command]
+pub fn probe_dom_state(
+    window: tauri::WebviewWindow,
+    token: u64,
+    value: serde_json::Value,
+) -> Result<(), String> {
+    if directory().is_none() || !matches!(window.label(), "capture" | "panel" | "settings") {
+        return Err("Observation réservée à la sonde".into());
+    }
+    DOM_OBSERVATIONS
+        .get_or_init(Mutex::default)
+        .lock()
+        .map_err(|error| error.to_string())?
+        .remove(&token)
+        .ok_or("Observation expirée")?
+        .send(value)
+        .map_err(|_| "Observation annulée".into())
+}
+
+/// Observe la vraie WebView ou attend une commande IPC, sans API de production ajoutée.
+async fn dom_state(
+    app: &AppHandle,
+    surface: Surface,
+    expression: &str,
+) -> Result<serde_json::Value, String> {
+    let token = OBSERVATION_SEQUENCE.fetch_add(1, Ordering::Relaxed);
+    let (sender, receiver) = tokio::sync::oneshot::channel();
+    DOM_OBSERVATIONS
+        .get_or_init(Mutex::default)
+        .lock()
+        .unwrap()
+        .insert(token, sender);
+    let expression = format!(
+        "(async () => {{ let value; try {{ value = await ({expression}); if (value === undefined) value = null; }} catch (error) {{ value = {{ probeError: String(error) }}; }} window.__TAURI_INTERNALS__.invoke('probe_dom_state', {{ token: {token}, value }}); }})()"
+    );
+    app.get_webview_window(surface.label())
+        .ok_or("Surface absente")?
+        .eval(expression)
+        .map_err(|error| error.to_string())?;
+    let result = tokio::time::timeout(Duration::from_secs(3), receiver).await;
+    DOM_OBSERVATIONS
+        .get_or_init(Mutex::default)
+        .lock()
+        .unwrap()
+        .remove(&token);
+    let value = result
+        .map_err(|error| error.to_string())?
+        .map_err(|error| error.to_string())?;
+    if let Some(error) = value.get("probeError") {
+        return Err(error.to_string());
+    }
+    Ok(value)
+}
+
+async fn expect_dom(
+    app: &AppHandle,
+    surface: Surface,
+    expression: &str,
+    expected: serde_json::Value,
+) -> Result<(), String> {
+    let start = Instant::now();
+    loop {
+        let value = dom_state(app, surface, expression).await?;
+        if value == expected {
+            return Ok(());
+        }
+        if start.elapsed() > Duration::from_secs(3) {
+            return Err(format!(
+                "DOM inattendu : attendu {expected}, obtenu {value}"
+            ));
+        }
+        tokio::time::sleep(Duration::from_millis(20)).await;
+    }
+}
 
 #[tauri::command]
 pub fn probe_capture_state(
@@ -291,6 +376,189 @@ fn replace_probe_source(path: &std::path::Path, content: &str) -> Result<(), Str
     std::fs::rename(temporary, path).map_err(|error| error.to_string())
 }
 
+async fn functional_ipc(app: &AppHandle, directory: &std::path::Path) -> Result<(), String> {
+    use serde_json::json;
+    let source_path = directory.join("tasks.md");
+    // La vue est demandée depuis la vraie WebView, comme par le client Vue.
+    let view_expression = "window.__TAURI_INTERNALS__.invoke('task_view', { request: { query: '', tag: null, history: false } })";
+    let before = dom_state(app, Surface::Panel, view_expression).await?;
+    if before["rows"].as_array().is_none_or(|rows| rows.len() != 2) {
+        return Err("La capture confirmée n'apparaît pas dans la projection IPC".into());
+    }
+    let previous_source = before["source"].clone();
+    let toggle = format!(
+        "window.__TAURI_INTERNALS__.invoke('task_toggle', {{ source: {}, position: 1, request: {{ query: '', tag: null, history: false }} }})",
+        previous_source
+    );
+    dom_state(app, Surface::Panel, &toggle).await?;
+    let completed = dom_state(app, Surface::Panel, view_expression).await?;
+    if completed["busy"] != false
+        || completed["version"].as_u64() <= before["version"].as_u64()
+        || completed["rows"][1]["completed"] != true
+    {
+        return Err("Complétion IPC non confirmée ou version non monotone".into());
+    }
+    let persisted = std::fs::read_to_string(&source_path).map_err(|error| error.to_string())?;
+    if !persisted.contains("- [x] Capture fonctionnelle #mission @completed(") {
+        return Err("La réponse de complétion précède son écriture persistée".into());
+    }
+    let history = dom_state(app, Surface::Panel, "window.__TAURI_INTERNALS__.invoke('task_view', { request: { query: 'fonctionnelle', tag: 'MISSION', history: true } })").await?;
+    if history["rows"]
+        .as_array()
+        .is_none_or(|rows| rows.len() != 1)
+        || history["rows"][0]["title"] != "Capture fonctionnelle"
+    {
+        return Err("L'historique IPC n'applique pas la recherche et le tag".into());
+    }
+    let stale_toggle = format!(
+        "window.__TAURI_INTERNALS__.invoke('task_toggle', {{ source: {}, position: 0, request: {{ query: '', tag: null, history: false }} }}).then(() => false, () => true)",
+        previous_source
+    );
+    if dom_state(app, Surface::Panel, &stale_toggle).await? != true {
+        return Err("Une ancienne révision IPC modifie le fichier".into());
+    }
+    // Le réglage invalide n'active pas sa source et n'écrit pas son chemin.
+    let invalid_path = directory.join("invalid.md");
+    std::fs::write(&invalid_path, "Sauvegarde invalide").map_err(|error| error.to_string())?;
+    let invalid_switch = format!(
+        "window.__TAURI_INTERNALS__.invoke('settings_source', {{ path: {}, create: false }}).then(() => false, () => true)",
+        json!(invalid_path.to_string_lossy())
+    );
+    if dom_state(app, Surface::Panel, &invalid_switch).await? != true
+        || std::fs::read_to_string(&source_path).map_err(|error| error.to_string())? != persisted
+    {
+        return Err("Le changement de source invalide n'est pas transactionnel".into());
+    }
+    let next_path = directory.join("second.md");
+    std::fs::write(&next_path, "- [ ] Nouvelle source\n").map_err(|error| error.to_string())?;
+    let switch = format!(
+        "window.__TAURI_INTERNALS__.invoke('settings_source', {{ path: {}, create: false }})",
+        json!(next_path.to_string_lossy())
+    );
+    dom_state(app, Surface::Panel, &switch).await?;
+    let switched = dom_state(app, Surface::Panel, view_expression).await?;
+    if switched["source"]["generation"] == completed["source"]["generation"]
+        || switched["rows"][0]["title"] != "Nouvelle source"
+    {
+        return Err("La source n'a pas changé de génération".into());
+    }
+    let stale_source = format!(
+        "window.__TAURI_INTERNALS__.invoke('task_toggle', {{ source: {}, position: 0, request: {{ query: '', tag: null, history: false }} }}).then(() => false, () => true)",
+        completed["source"]
+    );
+    if dom_state(app, Surface::Panel, &stale_source).await? != true
+        || std::fs::read_to_string(&next_path).map_err(|error| error.to_string())?
+            != "- [ ] Nouvelle source\n"
+    {
+        return Err("Une commande de l'ancienne source touche le nouveau fichier".into());
+    }
+    let config = mystline::config::load_or_create(directory).map_err(|error| error.to_string())?;
+    if config.tasks_file != next_path
+        || std::fs::read_to_string(&source_path).map_err(|error| error.to_string())? != persisted
+    {
+        return Err("Le choix de source n'est pas persisté ou altère l'ancien fichier".into());
+    }
+    // Les réglages du probe restent dans son dossier et les intégrations OS sont inhibées.
+    let collision = format!(
+        "window.__TAURI_INTERNALS__.invoke('settings_shortcut', {{ capture: true, value: {} }}).then(() => false, () => true)",
+        json!(config.shortcuts.panel)
+    );
+    if dom_state(app, Surface::Panel, &collision).await? != true {
+        return Err("Une collision interne de raccourci n'est pas refusée".into());
+    }
+    let after_collision =
+        mystline::config::load_or_create(directory).map_err(|error| error.to_string())?;
+    if after_collision.shortcuts != config.shortcuts {
+        return Err("Une collision de raccourci change la configuration persistée".into());
+    }
+    dom_state(app, Surface::Panel, "window.__TAURI_INTERNALS__.invoke('settings_shortcut', { capture: true, value: 'Alt+Shift+C' })").await?;
+    dom_state(
+        app,
+        Surface::Panel,
+        "window.__TAURI_INTERNALS__.invoke('settings_autostart', { enabled: false })",
+    )
+    .await?;
+    let updated_config =
+        mystline::config::load_or_create(directory).map_err(|error| error.to_string())?;
+    if updated_config.shortcuts.capture != "Alt+Shift+C"
+        || updated_config.shortcuts.panel != config.shortcuts.panel
+        || updated_config.autostart
+    {
+        return Err("Les réglages isolés ne sont pas persistés indépendamment".into());
+    }
+    #[cfg(target_os = "linux")]
+    {
+        // Une source saisie relative est normalisée avant configuration et watcher.
+        let relative_path = directory.join("relative.md");
+        std::fs::write(&relative_path, "- [ ] Source relative\n")
+            .map_err(|error| error.to_string())?;
+        let cwd = std::env::current_dir().map_err(|error| error.to_string())?;
+        let parents = cwd
+            .components()
+            .filter(|component| matches!(component, std::path::Component::Normal(_)))
+            .count();
+        let relative = format!(
+            "{}{}",
+            "../".repeat(parents),
+            relative_path
+                .strip_prefix("/")
+                .map_err(|error| error.to_string())?
+                .display()
+        );
+        let switch = format!(
+            "window.__TAURI_INTERNALS__.invoke('settings_source', {{ path: {}, create: false }})",
+            json!(relative)
+        );
+        dom_state(app, Surface::Panel, &switch).await?;
+        let configured =
+            mystline::config::load_or_create(directory).map_err(|error| error.to_string())?;
+        if !configured.tasks_file.is_absolute() {
+            return Err("Une source relative reste dépendante du répertoire de lancement".into());
+        }
+        replace_probe_source(
+            &relative_path,
+            "- [ ] Source relative\n- [ ] Modification externe\n",
+        )?;
+        wait_until(|| desktop::desktop_status(app.clone()).task_count == 2).await?;
+        let watched = dom_state(app, Surface::Panel, view_expression).await?;
+        if watched["rows"][1]["title"] != "Modification externe" {
+            return Err("Le watcher ne suit pas la source initialement relative".into());
+        }
+        let actual_path = directory.join("symlink-target.md");
+        let linked_path = directory.join("symlink-source.md");
+        std::fs::write(&actual_path, "- [ ] Cible originale\n")
+            .map_err(|error| error.to_string())?;
+        std::os::unix::fs::symlink(&actual_path, &linked_path)
+            .map_err(|error| error.to_string())?;
+        let switch = format!(
+            "window.__TAURI_INTERNALS__.invoke('settings_source', {{ path: {}, create: false }})",
+            json!(linked_path.to_string_lossy())
+        );
+        dom_state(app, Surface::Panel, &switch).await?;
+        dom_state(app, Surface::Panel, "window.__TAURI_INTERNALS__.invoke('task_create', { draft: 'Ajout via lien', session: Number(new URLSearchParams(location.search).get('session')), activation: 999999 })").await?;
+        let configured =
+            mystline::config::load_or_create(directory).map_err(|error| error.to_string())?;
+        let reopened = mystline::repository::TaskRepository::open(actual_path.clone(), false)
+            .map_err(|error| error.to_string())?
+            .snapshot();
+        if configured.tasks_file != actual_path
+            || !linked_path
+                .symlink_metadata()
+                .map_err(|error| error.to_string())?
+                .file_type()
+                .is_symlink()
+            || reopened.tasks.len() != 2
+            || reopened.tasks[1].title != "Ajout via lien"
+        {
+            return Err(
+                "Une écriture via source symlink diverge de la configuration ou remplace le lien"
+                    .into(),
+            );
+        }
+    }
+    Ok(())
+}
+
 async fn run(app: &AppHandle, directory: &std::path::Path) -> Result<Report, String> {
     let mode = WindowMode::requested();
     tokio::time::sleep(Duration::from_millis(200)).await;
@@ -340,6 +608,7 @@ async fn run(app: &AppHandle, directory: &std::path::Path) -> Result<Report, Str
     }
     open(app, Surface::Panel).await?;
     open(app, Surface::Settings).await?;
+    let settings_layout = dom_state(app, Surface::Settings, "(() => { const surface = document.querySelector('.surface'); const buttons = [...document.querySelectorAll('button')].filter(button => button.textContent.trim() === 'Enregistrer'); const last = buttons[buttons.length - 1]; return { viewportHeight: innerHeight, surfaceClientHeight: surface.clientHeight, surfaceScrollHeight: surface.scrollHeight, lastSaveButtonBottom: last ? last.getBoundingClientRect().bottom : null }; })()").await?;
     if visible_windows(app)? != 2
         || app.webview_windows().len() != if mode == WindowMode::Hide { 3 } else { 2 }
     {
@@ -421,6 +690,47 @@ async fn run(app: &AppHandle, directory: &std::path::Path) -> Result<Report, Str
     })
     .await?;
 
+    // Soumet le vrai formulaire de capture et attend le résultat visible/persisté.
+    open(app, Surface::Capture).await?;
+    expect_capture(app, "", true).await?;
+    app.get_webview_window("capture").ok_or("Capture absente")?.eval("(() => { const input = document.querySelector('#capture'); input.value = 'Capture invalide /d impossible'; input.dispatchEvent(new Event('input', { bubbles: true })); input.closest('form').requestSubmit(); })()").map_err(|error| error.to_string())?;
+    expect_dom(
+        app,
+        Surface::Capture,
+        "Boolean(document.querySelector('[role=alert]'))",
+        serde_json::json!(true),
+    )
+    .await?;
+    expect_capture(app, "Capture invalide /d impossible", true).await?;
+    if std::fs::read_to_string(&source).map_err(|error| error.to_string())?
+        != "- [ ] Vérification du watcher\n"
+    {
+        return Err("La capture invalide écrit dans le fichier".into());
+    }
+    app.get_webview_window("capture").ok_or("Capture absente")?.eval("(() => { const input = document.querySelector('#capture'); input.value = 'Capture fonctionnelle #mission'; input.dispatchEvent(new Event('input', { bubbles: true })); input.closest('form').requestSubmit(); })()").map_err(|error| error.to_string())?;
+    wait_until(|| {
+        app.get_webview_window("capture")
+            .is_some_and(|window| !window.is_visible().unwrap_or(true))
+    })
+    .await?;
+    if !std::fs::read_to_string(&source)
+        .map_err(|error| error.to_string())?
+        .contains("- [ ] Capture fonctionnelle #mission\n")
+    {
+        return Err("La capture s'est fermée avant son écriture".into());
+    }
+    open(app, Surface::Panel).await?;
+    expect_dom(
+        app,
+        Surface::Panel,
+        "document.body.textContent.includes('Capture fonctionnelle')",
+        serde_json::json!(true),
+    )
+    .await?;
+    functional_ipc(app, directory).await?;
+    close(app, Surface::Capture, mode).await?;
+    close(app, Surface::Panel, mode).await?;
+
     let secondary = tauri::async_runtime::spawn_blocking(|| {
         std::process::Command::new(std::env::current_exe().map_err(|error| error.to_string())?)
             .status()
@@ -432,7 +742,7 @@ async fn run(app: &AppHandle, directory: &std::path::Path) -> Result<Report, Str
         return Err("Le second lancement n'a pas quitté correctement".into());
     }
     Ok(Report {
-        profile: "debug / surfaces prototypes / raccourcis et autostart non modifiés",
+        profile: "debug / portage fonctionnel / raccourcis et autostart non modifiés",
         window_mode: mode,
         session_type: std::env::var("XDG_SESSION_TYPE").ok(),
         startup_without_windows: true,
@@ -454,6 +764,13 @@ async fn run(app: &AppHandle, directory: &std::path::Path) -> Result<Report, Str
         panel_toggle_reopens_same_window: mode == WindowMode::Hide,
         native_close_masks_settings: mode == WindowMode::Hide,
         capture_escape_masks_window: mode == WindowMode::Hide,
+        functional_capture_confirmed: true,
+        invalid_capture_preserves_draft: true,
+        completion_and_history_persisted: true,
+        stale_ipc_rejected: true,
+        source_switch_transactional: true,
+        isolated_settings_persisted: true,
+        settings_layout,
     })
 }
 

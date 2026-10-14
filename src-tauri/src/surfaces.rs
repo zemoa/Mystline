@@ -20,11 +20,38 @@ impl Surface {
     }
     fn size(self) -> (f64, f64) {
         match self {
-            Self::Capture => (430.0, 180.0),
+            Self::Capture => (460.0, 152.0),
             Self::Panel => (520.0, 680.0),
-            Self::Settings => (520.0, 520.0),
+            Self::Settings => (520.0, 800.0),
         }
     }
+}
+
+#[tauri::command]
+pub fn capture_layout(window: tauri::WebviewWindow, height: f64) -> Result<(), String> {
+    if window.label() != "capture" {
+        return Err("Seule la capture peut se redimensionner.".into());
+    }
+    // Le frontend mesure son contenu ; conserver le bord supérieur et limiter à l’écran.
+    let top = window
+        .outer_position()
+        .map_err(|error| error.to_string())?
+        .y as f64;
+    let available = window
+        .current_monitor()
+        .map_err(|error| error.to_string())?
+        .map(|monitor| {
+            (monitor.position().y as f64 + monitor.size().height as f64 - top)
+                / monitor.scale_factor()
+                - 32.0
+        })
+        .unwrap_or(600.0);
+    window
+        .set_size(tauri::LogicalSize::new(
+            460.0,
+            height.clamp(152.0, available.max(152.0)),
+        ))
+        .map_err(|error| error.to_string())
 }
 
 struct Session {
@@ -104,6 +131,16 @@ impl Surfaces {
         session.requested_visible = false;
         Some(session.activation)
     }
+    fn hide_expected(&mut self, surface: Surface, id: u64, activation: u64) -> Option<u64> {
+        if self
+            .sessions
+            .get(&surface)
+            .is_none_or(|session| session.id != id || session.activation != activation)
+        {
+            return None;
+        }
+        self.hide(surface)
+    }
     fn loaded(&mut self, surface: Surface, id: u64) -> Option<(Activation, std::time::Duration)> {
         let session = self.sessions.get_mut(&surface)?;
         if session.id != id || session.ready {
@@ -148,6 +185,12 @@ pub fn open(app: &AppHandle, surface: Surface) -> tauri::Result<()> {
         }
     };
     let (width, height) = surface.size();
+    let height = app
+        .primary_monitor()?
+        .map(|monitor| {
+            height.min((monitor.size().height as f64 / monitor.scale_factor() - 80.0).max(152.0))
+        })
+        .unwrap_or(height);
     let result = WebviewWindowBuilder::new(
         app,
         surface.label(),
@@ -276,7 +319,11 @@ pub async fn open_surface(app: AppHandle, surface: Surface) -> Result<(), String
 }
 
 #[tauri::command]
-pub async fn close_surface(window: tauri::WebviewWindow) -> Result<(), String> {
+pub async fn close_surface(
+    window: tauri::WebviewWindow,
+    session: u64,
+    activation: u64,
+) -> Result<(), String> {
     let surface = match window.label() {
         "capture" => Surface::Capture,
         "panel" => Surface::Panel,
@@ -287,11 +334,31 @@ pub async fn close_surface(window: tauri::WebviewWindow) -> Result<(), String> {
     let main = app.clone();
     let (sender, receiver) = tokio::sync::oneshot::channel();
     app.run_on_main_thread(move || {
-        let _ = sender.send(close(&main, surface).map_err(|error| error.to_string()));
+        let result = (|| {
+            let hidden = main
+                .state::<Mutex<Surfaces>>()
+                .lock()
+                .map_err(|error| error.to_string())?
+                .hide_expected(surface, session, activation);
+            if let Some(activation) = hidden
+                && let Some(window) = main.get_webview_window(surface.label())
+            {
+                window
+                    .emit("surface-closed", activation)
+                    .map_err(|error| error.to_string())?;
+                window.hide().map_err(|error| error.to_string())?;
+            }
+            Ok(())
+        })();
+        let _ = sender.send(result);
     })
     .map_err(|error| error.to_string())?;
     receiver.await.map_err(|error| error.to_string())?
 }
+
+#[cfg(test)]
+#[path = "surfaces_tests.rs"]
+mod migration_tests;
 
 #[cfg(test)]
 mod tests {

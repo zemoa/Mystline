@@ -1,6 +1,6 @@
 # F2-organiser-et-retrouver-ses-taches — Organiser et retrouver ses tâches
 
-> Migration Tauri/Vue : ces règles restent le comportement cible. Le socle fournit des surfaces prototypes ; leur portage fonctionnel est suivi dans [la migration](../migration-tauri-vue.md).
+> Migration Tauri/Vue : ces règles restent la référence fonctionnelle. Le portage F0–F5 et sa validation sont suivis dans [la migration](../migration-tauri-vue.md).
 
 ## Objectif et périmètre
 
@@ -46,7 +46,7 @@ F2 classe et ordonne les tâches actives. F3 décide de la visibilité et de la 
 
 ## Tests comme documentation
 
-Les règles Rust de F2 sont implémentées ; leur interface Vue reste à porter. Les scénarios ci-dessous sont exécutables et portent les commentaires **Étant donné / Quand / Alors** dans le code. Les dates sont fixes : vendredi **2026-10-09**, samedi **2026-10-10**, prochain jour ouvré **2026-10-12**. Aucun test n'attend réellement minuit et les tests de persistance utilisent des fichiers temporaires.
+Les règles Rust et leur interface Vue sont implémentées. Les scénarios ci-dessous sont exécutables et portent les commentaires **Étant donné / Quand / Alors** dans le code. Les dates sont fixes : vendredi **2026-10-09**, samedi **2026-10-10**, prochain jour ouvré **2026-10-12**. Aucun test n'attend réellement minuit et les tests de persistance utilisent des fichiers temporaires.
 
 | Règles | Scénarios exécutables | Source |
 | --- | --- | --- |
@@ -75,4 +75,4 @@ Exécuter les parcours persistés : `cargo test --test f2_documentation`. Exécu
 
 Vérifications manuelles complémentaires sur Windows, X11 et Wayland : retour du focus à l'activité précédente après capture ; ouverture/redimensionnement de l'aide et affichage des erreurs ; navigation et focus visibles sur les tags ; défilement avec titres longs ; panneau laissé ouvert au changement de jour. Les tests de widgets ne remplacent pas une validation dans ces sessions graphiques.
 
-Les scénarios propres aux widgets de l’ancienne interface ont été retirés avec Iced. Leur couverture clavier, sélection, focus et événements reste à rétablir dans les lots Vue concernés ; voir [le suivi de migration](../migration-tauri-vue.md).
+Les scénarios propres aux widgets de l'ancienne interface ont été retirés avec Iced. Les [tests DOM Vue](../../frontend/tests/App.test.ts) couvrent désormais les interactions clavier, la sélection, le focus, les champs et les réponses IPC différées. Les [tests du contrat](../../src-tauri/src/tasks_tests.rs) vérifient les projections JSON et les intentions ; les [tests de coordination](../../tests/migration_runtime.rs) complètent les parcours persistés. Les limites de cette couverture et les résultats de la sonde native figurent dans [le suivi de migration](../migration-tauri-vue.md).

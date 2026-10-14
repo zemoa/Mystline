@@ -1,6 +1,6 @@
 # F4-configurer-les-raccourcis-clavier — Configurer les raccourcis clavier
 
-> Migration Tauri/Vue : ces règles restent le comportement cible. Le socle fournit des surfaces prototypes ; leur portage fonctionnel est suivi dans [la migration](../migration-tauri-vue.md).
+> Migration Tauri/Vue : ces règles restent la référence fonctionnelle. Le portage F0–F5 et sa validation sont suivis dans [la migration](../migration-tauri-vue.md).
 
 ## Objectif et périmètre
 

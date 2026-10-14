@@ -124,12 +124,16 @@ impl<Origin: Clone + PartialEq> Coordinator<Origin> {
     }
 
     pub fn replace_source(&mut self, repo: TaskRepository) -> Result<(), String> {
-        if self.tasks.is_busy() || !self.queue.is_empty() {
+        if !self.can_replace_source() {
             return Err("Attendre la fin des enregistrements avant de changer de fichier.".into());
         }
         self.tasks.replace_source(repo);
         self.reload_pending = false;
         Ok(())
+    }
+
+    pub fn can_replace_source(&self) -> bool {
+        !self.tasks.is_busy() && self.queue.is_empty()
     }
 }
 
