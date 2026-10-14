@@ -102,6 +102,8 @@ Les données restent sur la machine.
 
 Par défaut, l’application démarre automatiquement à l’ouverture de la session utilisateur. L’utilisateur peut désactiver ce démarrage automatique dans les paramètres.
 
+Les paramètres affichent également le nom de l'application et sa version.
+
 Elle reste ensuite en arrière-plan.
 
 Elle ne doit pas afficher automatiquement sa fenêtre principale au démarrage.

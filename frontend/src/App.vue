@@ -4,6 +4,7 @@ import { invoke } from "@tauri-apps/api/core"
 import { listen, type UnlistenFn } from "@tauri-apps/api/event"
 import Icon from "./Icon.vue"
 import SyntaxHelp from "./SyntaxHelp.vue"
+import { version as appVersion } from "../../src-tauri/tauri.conf.json"
 
 type Surface = "capture" | "panel"
 interface Source { generation: number; revision: number }
@@ -354,6 +355,7 @@ onUnmounted(() => { disposed = true; for (const stop of unlisteners) stop(); res
           <form @submit.prevent="setting('settings_shortcut', { capture: false, value: panelShortcut }, 'Raccourci du panneau enregistré.')"><label for="panel-shortcut">Ouvrir / masquer le panneau <span :class="['badge', { active: status?.panelActive }]">{{ status?.panelActive ? "Actif" : "Inactif" }}</span></label><div class="setting-input"><input id="panel-shortcut" v-model="panelShortcut" autocomplete="off" /><button class="secondary" :disabled="settingsPending">Enregistrer</button></div></form>
           <p class="muted">Exemple : Ctrl+Shift+Espace. Si un raccourci est inactif, utilisez l’icône de la zone de notification.</p>
         </section>
+        <p class="muted app-version">Mystline · Version {{ appVersion }}</p>
       </div>
     </template>
   </main>
