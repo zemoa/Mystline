@@ -1202,7 +1202,6 @@ Les sujets suivants relèvent de la conception détaillée ou de l'implémentati
 - styles, couleurs et composants ;
 - seuils chiffrés CPU/RAM/latence ;
 - format détaillé des logs ;
-- packaging Windows/Linux ;
 - formats de distribution et installation des prérequis WebView ;
 - mesures complémentaires sur les interfaces fonctionnelles et les autres plateformes.
 
@@ -1216,6 +1215,7 @@ Ils ne doivent pas remettre en cause les frontières définies ici sans nouvelle
 |---|---|
 | Langage | Rust |
 | UI | Vue 3 / TypeScript, hôte Tauri 2 |
+| Distribution | Releases GitHub créées sur les tags `X.Y.Z`, avec `.deb` et `.AppImage` Linux, `.msi` et NSIS Windows |
 | Processus | Cœur Rust résident et processus WebView possibles |
 | Instance | Une seule par session |
 | Stockage | `tasks.md` |

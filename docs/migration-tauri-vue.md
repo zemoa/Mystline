@@ -42,7 +42,7 @@ L'utilisateur a demandé d'implémenter les fonctionnalités manquantes avec tro
 5. Porter la modification des paramètres et des raccourcis.
 6. Valider les parcours complets et consolider la présentation F5.
 
-L'architecture est la référence des décisions techniques ; la SFG et F0–F5 restent les références des comportements attendus. Le packaging Windows/Linux reste un sujet distinct, sans choix de distribution arrêté par cette autorisation.
+L'architecture est la référence des décisions techniques ; la SFG et F0–F5 restent les références des comportements attendus. Le packaging Windows/Linux reste distinct du portage fonctionnel ; sa distribution est définie dans l'architecture et automatisée par la pipeline GitHub.
 
 L'avancement des agents est présenté dans le [tableau visuel](validation/migration-agents.html) et son [aperçu SVG](validation/migration-agents.svg). Les états sont actualisés par le superviseur aux jalons ; la réussite des tests initiaux ne vaut pas validation du portage.
 
@@ -131,4 +131,4 @@ La revue indépendante a identifié et fait corriger les risques de versions obs
 
 La construction frontend TypeScript/Vite, les contrôles backend dev/release, Clippy des deux crates et le contrôle Windows GNU de la bibliothèque passent. Les derniers compteurs observés sont 80 tests Rust, 14 tests backend et 22 tests DOM Vue. Les régressions finales vérifient aussi les gardes de fermeture native, la récupération de brouillons et les réponses retardées des actions et dialogues.
 
-La sonde fonctionnelle debug est écrite et son lancement graphique nécessite une autorisation du sandbox. Aucun résultat natif du portage n'est encore présenté comme validé. Les intégrations réelles du tray, des raccourcis, de l'autostart et des dialogues doivent également être essayées dans les sessions Windows, X11 et Wayland ; une sonde isolée qui inhibe les modifications système ne les valide pas. Le packaging reste à décider séparément.
+La sonde fonctionnelle debug est écrite et son lancement graphique nécessite une autorisation du sandbox. Aucun résultat natif du portage n'est encore présenté comme validé. Les intégrations réelles du tray, des raccourcis, de l'autostart et des dialogues doivent également être essayées dans les sessions Windows, X11 et Wayland ; une sonde isolée qui inhibe les modifications système ne les valide pas. Les releases GitHub publiées sur les tags `X.Y.Z` produisent des paquets `.deb` et `.AppImage` pour Linux, ainsi que `.msi` et NSIS pour Windows.

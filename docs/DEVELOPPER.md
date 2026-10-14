@@ -13,6 +13,10 @@
 
 Depuis la racine, vérifier la bibliothèque : `cargo fmt --check`, `cargo test`, `cargo clippy --all-targets -- -D warnings` et `cargo check --target x86_64-pc-windows-gnu` si la cible Windows est installée. Pour le backend : `cargo fmt --manifest-path src-tauri/Cargo.toml --check`, `cargo test --manifest-path src-tauri/Cargo.toml`, `cargo clippy --manifest-path src-tauri/Cargo.toml --all-targets -- -D warnings`. Toujours depuis la racine, exécuter `pnpm install --frozen-lockfile` et `pnpm run build` pour le frontend, `pnpm run desktop:dev` pour démarrer l'application complète, ou `pnpm run desktop:build` pour construire son binaire sans packaging. Le workspace pnpm, le lockfile et la CLI Tauri sont gérés à la racine ; les scripts `dev` et `build` délèguent au frontend. Le backend Windows complet nécessite la chaîne de compilation et les prérequis Tauri Windows ; le check GNU de la bibliothèque ne le remplace pas. Tester les interactions tray et raccourcis sur des sessions Windows, X11 et Wayland : une compilation croisée ne vérifie pas les comportements du compositeur ou du shell.
 
+## Intégration continue et releases
+
+Le workflow GitHub Actions construit l'application Tauri sur Linux et Windows pour chaque push et pull request. Sur Linux, il exécute aussi le formatage, Clippy, les tests Rust et les tests DOM Vue. Un push de tag `X.Y.Z` crée une release GitHub du même tag et y publie les paquets `.deb` et `.AppImage` pour Linux, ainsi que `.msi` et l'installeur NSIS `.exe` pour Windows. La version du tag doit être alignée avec les manifests avant de le pousser.
+
 ## Sonde graphique debug
 
 Après `pnpm run build` à la racine, construire avec `cargo build --manifest-path src-tauri/Cargo.toml --features custom-protocol`. En debug uniquement, définir `MYSTLINE_PROBE_DIR` vers un répertoire temporaire neuf puis lancer `src-tauri/target/debug/mystline-desktop`. Le rapport `probe-report.json` est écrit dans ce répertoire.
