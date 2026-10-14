@@ -659,6 +659,8 @@ La totalité de cette vue doit rester compacte et immédiatement lisible.
 
 La [maquette visuelle](mockup.png) constitue la référence de direction graphique. La direction **Brume, palette Indigo**, choisie le 14 octobre 2026, associe un fond gris bleuté clair, une typographie sans sérif, des lignes compactes et des repères indigo pour les actions et la sélection clavier. Les tags restent en pastilles discrètes et le retard possède un traitement distinct. Les règles de présentation et les couleurs sont définies dans [F5](features/F5-consolider-interface.md). La maquette ne remplace pas les règles fonctionnelles de cette spécification : le panneau conserve notamment ses quatre sections et l'édition par commandes explicites.
 
+Le logo **« Lignes et coche »**, proposition 02 choisie le même jour, associe trois lignes indigo à une coche intégrée à la dernière. Ses [déclinaisons](designs/logos/propositions.md) servent de référence pour la marque et les icônes de l’application.
+
 ---
 
 # 27. Principe directeur du MVP

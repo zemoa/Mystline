@@ -669,14 +669,8 @@ fn install_tray(app: &AppHandle) -> tauri::Result<()> {
             &MenuItem::with_id(app, "quit", "Quitter", true, None::<&str>)?,
         ],
     )?;
-    let mut pixels = vec![0; 32 * 32 * 4];
-    for y in 6..26 {
-        for x in 6..26 {
-            pixels[(y * 32 + x) * 4..(y * 32 + x) * 4 + 4].copy_from_slice(&[87, 111, 233, 255]);
-        }
-    }
     TrayIconBuilder::with_id("mystline")
-        .icon(tauri::image::Image::new_owned(pixels, 32, 32))
+        .icon(crate::brand::tray_icon())
         .tooltip("Mystline")
         .menu(&menu)
         .show_menu_on_left_click(false)

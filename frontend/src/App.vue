@@ -291,7 +291,7 @@ onUnmounted(() => { disposed = true; for (const stop of unlisteners) stop(); res
 
     <template v-else>
       <header>
-        <div class="brand"><span class="brand-mark" aria-hidden="true">M</span><span>Mystline</span></div>
+        <div class="brand"><img class="brand-mark" src="/mystline-mark.svg" alt="" aria-hidden="true" /><span>Mystline</span></div>
         <nav aria-label="Actions">
           <button v-if="settingsView" aria-label="Retour aux tâches" @click="open('panel')"><Icon name="back" /></button>
           <button v-if="!settingsView && history" aria-label="Retour aux tâches" @click="toggleHistory"><Icon name="back" /></button>

@@ -47,16 +47,8 @@ impl Tray {
                 emit(action);
             }
         }));
-        let mut pixels = vec![0u8; 32 * 32 * 4];
-        for y in 0..32 {
-            for x in 0..32 {
-                if (6..26).contains(&x) && (6..26).contains(&y) {
-                    let pos = (y * 32 + x) * 4;
-                    pixels[pos..pos + 4].copy_from_slice(&[87, 111, 233, 255]);
-                }
-            }
-        }
-        let icon = Icon::from_rgba(pixels, 32, 32)?;
+        let image = crate::brand::tray_icon();
+        let icon = Icon::from_rgba(image.rgba().to_vec(), image.width(), image.height())?;
         let icon = TrayIconBuilder::new()
             .with_icon(icon)
             .with_tooltip("Mystline")

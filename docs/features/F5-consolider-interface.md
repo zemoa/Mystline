@@ -34,6 +34,10 @@ L'éditeur reste fondé sur la syntaxe explicite `/p`, `/d` et `#tag`. Les trois
 
 Les champs et les contrôles secondaires sont blancs ; les boutons principaux utilisent un texte blanc sur indigo. Les confirmations et badges actifs conservent un vert discret (`#386552` sur `#E7F1EB`). Le [SVG de référence](../designs/brume-indigo.svg) accompagne l'export PNG.
 
+## Logo Mystline
+
+La proposition **02, « Lignes et coche »**, a été choisie le 14 octobre 2026. Trois lignes indigo représentent les tâches ; la dernière se prolonge en coche. Le panneau utilise ce symbole à côté du nom Mystline, sans cartouche. Le favicon, les icônes de distribution et le tray Linux et Windows reprennent le même dessin. La [source SVG et ses déclinaisons](../designs/logos/propositions.md) remplacent le monogramme « M » provisoire ; la maquette de référence a été actualisée.
+
 ## Vérifications fonctionnelles
 
 - La capture reste focalisée à l'ouverture et conserve son texte lorsqu'une validation échoue ; son aide et son erreur ne débordent pas de la fenêtre.

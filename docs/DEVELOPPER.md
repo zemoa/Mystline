@@ -45,6 +45,10 @@ Depuis la racine, `pnpm --dir frontend test` exécute les scénarios DOM de `fro
 
 Ces scénarios complètent les parcours persistés F2/F3 et les vérifications de compilation. Les tests sans fenêtre et les mocks IPC ne remplacent pas une sonde native ni les essais des raccourcis, du tray et de l'autostart dans chaque session graphique.
 
+## Régénérer les icônes
+
+Le symbole source est `frontend/public/mystline-mark.svg`. `python3 scripts/export-icons.py` régénère les logos de `docs/designs/logos/` et les assets de `src-tauri/icons/` : PNG, ICO et buffer RGBA 32 × 32 partagé par les trays Linux et Windows. Cet export utilise PyGObject/Rsvg, Pycairo, Pillow et Noto Sans ; ces outils ne sont pas des dépendances applicatives. Après une modification du dessin, conserver la source et ses exports dans le même changement.
+
 ## Conventional Commits
 
 Format : `type(portée): description courte`, à l'impératif et sans point final. La portée est facultative.
