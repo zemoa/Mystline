@@ -356,6 +356,30 @@ pub async fn close_surface(
     receiver.await.map_err(|error| error.to_string())?
 }
 
+/// Ferme la surface dont provient une action explicite de son interface.
+///
+/// Contrairement à `close_surface`, cette commande ne reçoit pas une activation
+/// potentiellement obsolète : le clic sur la croix doit toujours masquer la
+/// fenêtre que l'utilisateur voit. Les retours asynchrones conservent la
+/// commande identifiée ci-dessus pour ne pas fermer une surface rouverte.
+#[tauri::command]
+pub async fn close_current_surface(window: tauri::WebviewWindow) -> Result<(), String> {
+    let surface = match window.label() {
+        "capture" => Surface::Capture,
+        "panel" => Surface::Panel,
+        "settings" => Surface::Settings,
+        _ => return Err("Surface inconnue".into()),
+    };
+    let app = window.app_handle().clone();
+    let main = app.clone();
+    let (sender, receiver) = tokio::sync::oneshot::channel();
+    app.run_on_main_thread(move || {
+        let _ = sender.send(close(&main, surface).map_err(|error| error.to_string()));
+    })
+    .map_err(|error| error.to_string())?;
+    receiver.await.map_err(|error| error.to_string())?
+}
+
 #[cfg(test)]
 #[path = "surfaces_tests.rs"]
 mod migration_tests;

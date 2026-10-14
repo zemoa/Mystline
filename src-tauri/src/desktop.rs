@@ -773,6 +773,7 @@ pub fn run() -> Result<(), Box<dyn std::error::Error>> {
         surfaces::surface_ready,
         surfaces::open_surface,
         surfaces::close_surface,
+        surfaces::close_current_surface,
         crate::probe::probe_capture_state,
         crate::probe::probe_dom_state,
         surfaces::capture_layout
@@ -792,6 +793,7 @@ pub fn run() -> Result<(), Box<dyn std::error::Error>> {
         surfaces::surface_ready,
         surfaces::open_surface,
         surfaces::close_surface,
+        surfaces::close_current_surface,
         surfaces::capture_layout
     ]);
     let app = builder

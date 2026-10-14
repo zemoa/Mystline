@@ -99,11 +99,16 @@ async function opened(event: { activation: number; reset: boolean }) {
 }
 function retainListener(stop: UnlistenFn) { if (disposed) stop(); else unlisteners.push(stop) }
 async function run(command: string, args?: Record<string, unknown>): Promise<boolean> {
-  try { await invoke(command, args); return true }
+  try { if (args) await invoke(command, args); else await invoke(command); return true }
   catch (cause) { error.value = String(cause); return false }
 }
 function open(target: Surface) { void run("open_surface", { surface: target }) }
-function close() { void run("close_surface", { session, activation }) }
+// Une action explicite de l'utilisateur ferme la surface actuellement affichée.
+// La fermeture identifiée reste réservée aux retours asynchrones (par exemple
+// après l'enregistrement d'une capture), qui ne doivent jamais fermer une
+// surface rouverte entre-temps.
+function closeCurrentSurface() { void run("close_current_surface") }
+function closeAfterCapture() { void run("close_surface", { session, activation }) }
 async function focusList() { await nextTick(); list.value?.focus(); scrollSelection() }
 function scrollSelection() {
   void nextTick(() => list.value?.querySelector<HTMLElement>(`[data-position="${selected.value}"]`)?.scrollIntoView?.({ block: "nearest" }))
@@ -138,7 +143,7 @@ async function submitCreate() {
     await invoke("task_create", { draft: original, session, activation: submittedActivation })
     if (activation === submittedActivation) {
       draft.value = ""; adding.value = false; help.value = false
-      if (surface === "capture") close(); else await focusList()
+      if (surface === "capture") closeAfterCapture(); else await focusList()
     }
   } catch (cause) {
     if (activation === submittedActivation && visible) { draft.value = original; error.value = String(cause) }
@@ -194,7 +199,7 @@ function keydown(event: KeyboardEvent) {
     else if (adding.value) { if (pending.value) return; adding.value = false; draft.value = ""; error.value = ""; void focusList() }
     else if (searching.value || query.value) { searching.value = false; query.value = ""; void focusList() }
     else if (history.value) { history.value = false; void focusList() }
-    else close()
+    else closeCurrentSurface()
     return
   }
   if (surface !== "panel") return
@@ -265,7 +270,7 @@ onUnmounted(() => { disposed = true; for (const stop of unlisteners) stop(); res
 <template>
   <main :class="['surface', surface]">
     <div v-if="surface === 'capture'" ref="captureContent" class="capture-content">
-      <div class="capture-top"><span class="sr-only">Capture rapide</span><button aria-label="Fermer" @click="close"><Icon name="close" /></button></div>
+      <div class="capture-top"><span class="sr-only">Capture rapide</span><button type="button" aria-label="Fermer" @click="closeCurrentSurface"><Icon name="close" /></button></div>
       <form @submit.prevent="submitCreate">
         <label class="sr-only" for='capture'>Saisie de la tâche</label>
         <input id='capture' ref="captureInput" v-model="draft" :readonly="pending" placeholder="Que souhaitez-vous faire ?" autocomplete="off" />
@@ -283,7 +288,7 @@ onUnmounted(() => { disposed = true; for (const stop of unlisteners) stop(); res
           <button v-if="surface === 'panel'" aria-label="Rechercher" title="Rechercher · Ctrl+F" @click="beginSearch"><Icon name="search" /></button>
           <button v-if="surface === 'panel' && !history" aria-label="Historique" title="Historique · Ctrl+H" @click="toggleHistory"><Icon name="history" /></button>
           <button v-if="surface === 'panel'" aria-label="Ouvrir les paramètres" @click="open('settings')"><Icon name='settings' /></button>
-          <button aria-label="Fermer" @click="close"><Icon name="close" /></button>
+          <button type="button" aria-label="Fermer" @click="closeCurrentSurface"><Icon name="close" /></button>
         </nav>
       </header>
       <p v-if="error || status?.repositoryError" role="alert" class="error">{{ error || status?.repositoryError }}</p>

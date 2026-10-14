@@ -118,7 +118,7 @@ describe('capture confirmée et erreurs', () => {
     expect(app.get<HTMLInputElement>('#capture').element.value).toBe('Titre /d impossible')
     expect(desktop.invoke.mock.calls.filter(([command]) => command === 'close_surface')).toHaveLength(0)
     key('Escape'); await flushPromises()
-    expect(desktop.invoke).toHaveBeenCalledWith('close_surface', { session: 3, activation: 10 })
+    expect(desktop.invoke).toHaveBeenCalledWith('close_current_surface')
   })
 
   it('une confirmation ancienne nefface et neferme pas la capture rouverte', async () => {
@@ -187,6 +187,15 @@ describe('capture confirmée et erreurs', () => {
 })
 
 describe('panneau accessible au clavier', () => {
+  it('la croix masque toujours le panneau actuellement affiché', async () => {
+    // RG-F0-02/F5-04 — Étant donné le panneau principal prêt à recevoir une action.
+    const app = await open('panel')
+    // Quand l'utilisateur clique sa croix de fermeture.
+    await app.get('[aria-label="Fermer"]').trigger('click')
+    // Alors la demande concerne la surface courante, sans dépendre d'une activation périmée.
+    expect(desktop.invoke).toHaveBeenCalledWith('close_current_surface')
+  })
+
   it('les flèches sélectionnent puis Espace complète la tâche avec sa source courante', async () => {
     // RG-F2-14/F3-08 — Étant donné deux tâches affichées et le focus dans la liste.
     const app = await open('panel')
