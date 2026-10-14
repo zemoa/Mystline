@@ -61,7 +61,7 @@ struct Resident {
     responses: HashMap<String, tokio::sync::oneshot::Sender<Result<(), String>>>,
     shortcut_generations: [u64; 2],
     #[cfg(target_os = "linux")]
-    portal_controls: [Option<PortalControl>; 2],
+    portal_control: Option<PortalControl>,
     is_probe: bool,
     _watcher: RecommendedWatcher,
 }
@@ -449,9 +449,9 @@ fn register_shortcut(app: &AppHandle, value: &str, capture: bool, generation: u6
 
 #[cfg(target_os = "linux")]
 fn start_portal(
-    value: String,
-    capture: bool,
-    generation: u64,
+    shortcuts: config::Shortcuts,
+    generations: [u64; 2],
+    app_id: String,
     previous: Option<PortalControl>,
 ) -> PortalControl {
     let (stop, receiver) = tokio::sync::oneshot::channel();
@@ -462,14 +462,16 @@ fn start_portal(
             let _ = previous.closed.await;
         }
         if let Err(error) =
-            crate::linux::portal_shortcut(value, capture, generation, receiver).await
+            crate::linux::portal_shortcuts(shortcuts, generations, app_id, receiver).await
         {
             tracing::warn!(%error, "portal_shortcut_unavailable");
-            emit(Event::PortalStatus {
-                capture,
-                generation,
-                active: false,
-            });
+            for (index, generation) in generations.into_iter().enumerate() {
+                emit(Event::PortalStatus {
+                    capture: index == 0,
+                    generation,
+                    active: false,
+                });
+            }
         }
         let _ = closed.send(());
     });
@@ -610,11 +612,15 @@ pub fn settings_shortcut(app: AppHandle, capture: bool, value: String) -> Result
     } else if wayland() {
         #[cfg(target_os = "linux")]
         {
-            let previous = state.portal_controls[index].take();
-            state.portal_controls[index] = Some(start_portal(
-                requested.clone(),
-                capture,
-                generation,
+            // Le portail remplace l'ensemble des actions de l'application.
+            // Renouveler les deux générations empêche l'ancienne session d'agir.
+            state.shortcut_generations[1 - index] += 1;
+            state.shortcuts = (false, false);
+            let previous = state.portal_control.take();
+            state.portal_control = Some(start_portal(
+                updated.shortcuts.clone(),
+                state.shortcut_generations,
+                app.config().identifier.clone(),
                 previous,
             ));
         }
@@ -826,18 +832,15 @@ pub fn run() -> Result<(), Box<dyn std::error::Error>> {
             #[cfg(windows)]
             install_tray(app.handle())?;
             #[cfg(target_os = "linux")]
-            let portal_controls = if wayland() && !is_probe {
-                [
-                    Some(start_portal(
-                        config.shortcuts.capture.clone(),
-                        true,
-                        0,
-                        None,
-                    )),
-                    Some(start_portal(config.shortcuts.panel.clone(), false, 0, None)),
-                ]
+            let portal_control = if wayland() && !is_probe {
+                Some(start_portal(
+                    config.shortcuts.clone(),
+                    [0, 0],
+                    app.config().identifier.clone(),
+                    None,
+                ))
             } else {
-                [None, None]
+                None
             };
             app.manage(Mutex::new(Resident {
                 config,
@@ -850,7 +853,7 @@ pub fn run() -> Result<(), Box<dyn std::error::Error>> {
                 responses: HashMap::new(),
                 shortcut_generations: [0, 0],
                 #[cfg(target_os = "linux")]
-                portal_controls,
+                portal_control,
                 is_probe,
                 _watcher: watcher,
             }));

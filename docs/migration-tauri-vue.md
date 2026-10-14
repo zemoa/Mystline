@@ -132,3 +132,11 @@ La revue indépendante a identifié et fait corriger les risques de versions obs
 La construction frontend TypeScript/Vite, les contrôles backend dev/release, Clippy des deux crates et le contrôle Windows GNU de la bibliothèque passent. Les derniers compteurs observés sont 80 tests Rust, 14 tests backend et 22 tests DOM Vue. Les régressions finales vérifient aussi les gardes de fermeture native, la récupération de brouillons et les réponses retardées des actions et dialogues.
 
 La sonde fonctionnelle debug est écrite et son lancement graphique nécessite une autorisation du sandbox. Aucun résultat natif du portage n'est encore présenté comme validé. Les intégrations réelles du tray, des raccourcis, de l'autostart et des dialogues doivent également être essayées dans les sessions Windows, X11 et Wayland ; une sonde isolée qui inhibe les modifications système ne les valide pas. Les releases GitHub publiées sur les tags `X.Y.Z` produisent des paquets `.deb` et `.AppImage` pour Linux, ainsi que `.msi` et NSIS pour Windows.
+
+## Correction et validation des raccourcis KDE — 14 octobre 2026
+
+Sous KDE Plasma 6.7.5 / Wayland avec xdg-desktop-portal 1.22.1, l'identité du portail est désormais `local.mystline`, sans le suffixe `.desktop` que KGlobalAccel réserve aux lanceurs. Une entrée locale cachée fournit les métadonnées requises par le registre. Les deux actions partagent une session ; une réponse sans touche attribuée reste inactive.
+
+L'utilisateur a confirmé que `Ctrl+Shift+Espace` et `Ctrl+Shift+T` fonctionnent après autorisation initiale, puis qu'ils fonctionnent encore après fermeture et relancement sans nouvelle fenêtre KDE. Les journaux montrent la réception des deux activations et KDE conserve les deux attributions dans le composant `local.mystline`. Le test natif de restauration dans deux sessions neuves passe, ainsi que les 23 tests backend ordinaires, Clippy et la compilation du binaire debug avec `custom-protocol`.
+
+Cette vérification couvre le déclenchement des deux valeurs initiales et leur restauration sous KDE. La modification d'une combinaison et les sessions Windows/X11 restent à valider manuellement.

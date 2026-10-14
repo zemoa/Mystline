@@ -55,6 +55,8 @@ Les diagnostics techniques sont écrits dans des fichiers quotidiens `logs/mystl
 
 Sur Wayland, les raccourcis passent par **XDG Global Shortcuts** : le portail du bureau peut demander une autorisation ou refuser une combinaison ; les paramètres indiquent alors son état. L'icône de tray Linux utilise StatusNotifierItem (KSNI) et requiert un bureau qui l'affiche. Pour conserver le démarrage automatique après le développement, lancer un binaire installé à un emplacement stable plutôt que `src-tauri/target/debug/mystline-desktop`.
 
+Sous KDE, accepter la demande de raccourcis de Mystline une fois lors du premier lancement ou après un changement de combinaison. Une action sans touche attribuée apparaît « Inactif », même si le portail connaît son nom. Les attributions se consultent aussi dans les paramètres système de KDE, rubrique « Raccourcis », sous « Mystline » (`local.mystline`). Les anciennes demandes des versions de développement peuvent apparaître sous Konsole ou VSCodium.
+
 ## Documentation
 
 - [Spécification fonctionnelle](docs/SFG.md)
