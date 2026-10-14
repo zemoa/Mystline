@@ -99,6 +99,8 @@ Ces scénarios complètent les parcours persistés F2/F3 et les vérifications d
 
 Le symbole source est `frontend/public/mystline-mark.svg`. `python3 scripts/export-icons.py` régénère les logos de `docs/designs/logos/` et les assets de `src-tauri/icons/` : PNG, ICO et buffer RGBA 32 × 32 partagé par les trays Linux et Windows. Cet export utilise PyGObject/Rsvg, Pycairo, Pillow et Noto Sans ; ces outils ne sont pas des dépendances applicatives. Après une modification du dessin, conserver la source et ses exports dans le même changement.
 
+La configuration Vue/Vite conserve les URL absolues de `public` comme URL d'images (`transformAssetUrls.includeAbsolute: false`). Leur transformation en imports JavaScript peut bloquer le chargement initial dans WebKitGTK en développement. Après une modification des assets ou de cette configuration, vérifier le premier clic du tray après un lancement complet de `pnpm run desktop:dev`, en ouvrant le panneau avant la capture ; une réouverture ou un rechargement à chaud ne couvre pas ce parcours.
+
 ## Conventional Commits
 
 Format : `type(portée): description courte`, à l'impératif et sans point final. La portée est facultative.
