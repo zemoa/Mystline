@@ -9,6 +9,11 @@ on:
 permissions:
   contents: read
 
+# Superseded branch/PR runs should not occupy runners; keep tag releases running.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ !startsWith(github.ref, 'refs/tags/') }}
+
 jobs:
   verify:
     name: Verify (${{ matrix.os }})
@@ -37,42 +42,77 @@ jobs:
           sudo apt-get install -y libayatana-appindicator3-dev libgtk-3-dev libssl-dev libwebkit2gtk-4.1-dev libx11-dev libxdo-dev libxkbcommon-dev libwayland-dev librsvg2-dev patchelf pkg-config xdg-utils
 
       - uses: dtolnay/rust-toolchain@stable
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          # Target paths are relative to each Cargo project.
+          workspaces: |
+            . -> target
+            src-tauri -> target
+          # Invalidate the old cache, which omitted Tauri's target directory.
+          prefix-key: v1-tauri
+
+      - name: Install frontend dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build the application
+        run: pnpm exec tauri build --no-bundle -- --locked
+
+  quality:
+    name: Formatting, lint and tests (Linux)
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 11.25.0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install Linux build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libayatana-appindicator3-dev libgtk-3-dev libssl-dev libwebkit2gtk-4.1-dev libx11-dev libxdo-dev libxkbcommon-dev libwayland-dev librsvg2-dev patchelf pkg-config xdg-utils
+
+      - uses: dtolnay/rust-toolchain@stable
         with:
           components: clippy, rustfmt
 
       - uses: Swatinem/rust-cache@v2
         with:
-          workspaces: ". -> target\nsrc-tauri -> src-tauri/target"
+          workspaces: |
+            . -> target
+            src-tauri -> target
+          prefix-key: v1-tauri
 
       - name: Install frontend dependencies
         run: pnpm install --frozen-lockfile
 
       - name: Check formatting
-        if: runner.os == 'Linux'
         run: |
           cargo fmt --all -- --check
           cargo fmt --manifest-path src-tauri/Cargo.toml -- --check
 
       - name: Lint
-        if: runner.os == 'Linux'
         run: |
           cargo clippy --locked --all-targets -- -D warnings
           cargo clippy --manifest-path src-tauri/Cargo.toml --locked --all-targets -- -D warnings
 
       - name: Test
-        if: runner.os == 'Linux'
         run: |
           cargo test --locked
           cargo test --manifest-path src-tauri/Cargo.toml --locked
           pnpm --dir frontend test
 
-      - name: Build the application
-        run: pnpm exec tauri build --no-bundle
-
   release:
     name: Release (${{ matrix.name }})
     if: startsWith(github.ref, 'refs/tags/')
-    needs: verify
+    needs: [verify, quality]
     runs-on: ${{ matrix.os }}
     permissions:
       contents: write
@@ -109,7 +149,10 @@ jobs:
 
       - uses: Swatinem/rust-cache@v2
         with:
-          workspaces: ". -> target\nsrc-tauri -> src-tauri/target"
+          workspaces: |
+            . -> target
+            src-tauri -> target
+          prefix-key: v1-tauri
 
       - name: Install frontend dependencies
         run: pnpm install --frozen-lockfile

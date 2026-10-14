@@ -21,6 +21,8 @@ Après autorisation des deux raccourcis sous KDE, `cargo test --manifest-path sr
 
 Le workflow GitHub Actions construit l'application Tauri sur Linux et Windows pour chaque push et pull request. Sur Linux, il exécute aussi le formatage, Clippy, les tests Rust et les tests DOM Vue. Un push de tag `X.Y.Z` crée une release GitHub du même tag et y publie les paquets `.deb` et `.AppImage` pour Linux, ainsi que `.msi` et l'installeur NSIS `.exe` pour Windows. La version du tag doit être alignée avec les manifests avant de le pousser.
 
+Les contrôles Linux s'exécutent dans un job indépendant, en parallèle des deux compilations release sans packaging. La publication attend la réussite des trois jobs. Chaque job conserve son propre cache Rust ; dans la configuration de `Swatinem/rust-cache`, le chemin cible est relatif au projet Cargo : `src-tauri -> target` désigne donc `src-tauri/target`. Un nouveau push sur une même branche ou pull request annule l'exécution précédente encore en cours ; les exécutions de tags ne sont pas annulées.
+
 ## Sonde graphique debug
 
 Après `pnpm run build` à la racine, construire avec `cargo build --manifest-path src-tauri/Cargo.toml --features custom-protocol`. En debug uniquement, définir `MYSTLINE_PROBE_DIR` vers un répertoire temporaire neuf puis lancer `src-tauri/target/debug/mystline-desktop`. Le rapport `probe-report.json` est écrit dans ce répertoire.
