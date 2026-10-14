@@ -657,7 +657,7 @@ Conceptuellement, le panneau pourrait ressembler à ceci :
 
 La totalité de cette vue doit rester compacte et immédiatement lisible.
 
-La [maquette visuelle](mockup.png) constitue la référence de direction graphique : surface claire, hiérarchie typographique nette, contrôles compacts, tags en pastilles et actions immédiatement identifiables. Elle ne remplace pas les règles fonctionnelles de cette spécification : le panneau conserve notamment ses quatre sections et l'édition par commandes explicites.
+La [maquette visuelle](mockup.png) constitue la référence de direction graphique. La direction **Brume, palette Indigo**, choisie le 14 octobre 2026, associe un fond gris bleuté clair, une typographie sans sérif, des lignes compactes et des repères indigo pour les actions et la sélection clavier. Les tags restent en pastilles discrètes et le retard possède un traitement distinct. Les règles de présentation et les couleurs sont définies dans [F5](features/F5-consolider-interface.md). La maquette ne remplace pas les règles fonctionnelles de cette spécification : le panneau conserve notamment ses quatre sections et l'édition par commandes explicites.
 
 ---
 

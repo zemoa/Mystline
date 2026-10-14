@@ -53,6 +53,10 @@ const groups = computed(() => history.value ? [{ key: "history", label: "Tâches
   { key: "overdue", label: "En retard" }, { key: "today", label: "Aujourd’hui" },
   { key: "nextWorkday", label: "Prochain jour ouvré · " + dateLabel(view.value?.nextWorkday || "") }, { key: "all", label: "Toutes les tâches" },
 ].map(group => ({ ...group, rows: (view.value?.rows || []).filter(row => row.section === group.key) })))
+const panelDate = computed(() => {
+  const today = view.value?.today || status.value?.today
+  return today ? new Date(today + "T12:00:00").toLocaleDateString("fr-FR", { weekday: "long", day: "numeric", month: "long" }) : ""
+})
 function dateLabel(date: string) {
   if (!date) return ""
   return new Date(date + "T12:00:00").toLocaleDateString("fr-FR", { day: "numeric", month: "short" })
@@ -274,7 +278,7 @@ onUnmounted(() => { disposed = true; for (const stop of unlisteners) stop(); res
 <template>
   <main :class="['surface', surface]">
     <div v-if="surface === 'capture'" ref="captureContent" class="capture-content">
-      <div class="capture-top"><span class="sr-only">Capture rapide</span><button type="button" aria-label="Fermer" @click="closeCurrentSurface"><Icon name="close" /></button></div>
+      <div class="capture-top"><span class="surface-label">Capture rapide</span><button type="button" aria-label="Fermer" @click="closeCurrentSurface"><Icon name="close" /></button></div>
       <form @submit.prevent="submitCreate">
         <label class="sr-only" for='capture'>Saisie de la tâche</label>
         <input id='capture' ref="captureInput" v-model="draft" :readonly="pending" placeholder="Que souhaitez-vous faire ?" autocomplete="off" />
@@ -286,7 +290,8 @@ onUnmounted(() => { disposed = true; for (const stop of unlisteners) stop(); res
     </div>
 
     <template v-else>
-      <header><h1>{{ settingsView ? "Paramètres" : history ? "Historique" : "Mes tâches" }}</h1>
+      <header>
+        <div class="brand"><span class="brand-mark" aria-hidden="true">M</span><span>Mystline</span></div>
         <nav aria-label="Actions">
           <button v-if="settingsView" aria-label="Retour aux tâches" @click="open('panel')"><Icon name="back" /></button>
           <button v-if="!settingsView && history" aria-label="Retour aux tâches" @click="toggleHistory"><Icon name="back" /></button>
@@ -296,6 +301,10 @@ onUnmounted(() => { disposed = true; for (const stop of unlisteners) stop(); res
           <button type="button" aria-label="Fermer" @click="closeCurrentSurface"><Icon name="close" /></button>
         </nav>
       </header>
+      <div class="page-heading">
+        <h1>{{ settingsView ? "Paramètres" : history ? "Historique" : "Mes tâches" }}</h1>
+        <p v-if="!settingsView && panelDate" class="panel-date">{{ panelDate }}</p>
+      </div>
       <p v-if="error || status?.repositoryError" role="alert" class="error">{{ error || status?.repositoryError }}</p>
       <p v-if="success" role="status" class="success">{{ success }}</p>
       <template v-if="!settingsView">
