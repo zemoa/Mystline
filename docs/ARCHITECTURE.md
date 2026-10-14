@@ -187,7 +187,7 @@ Une application Vue commune rend la capture rapide, le panneau quotidien, l'hist
 
 La présentation partage une palette claire, des métriques d'espacement, des contrôles compacts et des icônes SVG embarquées. Cette couche visuelle ne parse pas le Markdown et ne porte aucune règle du domaine. La direction graphique reste celle de la maquette et de F5.
 
-Le lot 1 fournit trois surfaces prototypes. Le portage des fonctionnalités et le contrat de commandes de tâches sont des lots suivants, encore soumis à validation.
+Le lot 1 a fourni trois surfaces prototypes. Le portage des fonctionnalités F0–F5 et le contrat de commandes de tâches ont été autorisés le 13 octobre 2026 ; leur avancement est suivi dans le document de migration.
 
 ---
 
@@ -422,11 +422,15 @@ L'entrée structurée `application::TaskInput` contient `title`, `planned`, `dea
 
 `src/runtime/task_store.rs` détient le snapshot optimiste et le snapshot confirmé. `src/runtime/coordinator.rs` sérialise les opérations et conserve les créations en FIFO pendant une écriture ou un rechargement. Les protections de génération, de séquence et de révision sont indépendantes de Tauri.
 
-`src-tauri/` orchestre les fenêtres, l'intégration système et le runtime. `frontend/` contient les composants Vue et le style partagé. Les fenêtres détruites ne détiennent jamais l'unique copie de l'état confirmé.
+`src-tauri/` orchestre les fenêtres, l'intégration système et le runtime. `frontend/` contient les composants Vue et le style partagé. Les surfaces ne détiennent jamais l'unique copie de l'état confirmé.
 
 ### 9.2 Échanges entre les surfaces et le cœur
 
-Le lot 1 expose seulement l'état desktop consultatif et le cycle de vie des surfaces. Le contrat des snapshots et commandes de tâches reste à proposer et valider avant le portage fonctionnel.
+Le portage fonctionnel utilise `src-tauri/src/tasks.rs` pour les DTO et les intentions de présentation. `task_view(request)` reçoit la recherche, le tag et le mode quotidien/historique, et renvoie les lignes projetées par Rust : position physique, section, titre, tags, dates, état, tonalité de deadline et brouillon d'édition échappé. La réponse contient aussi la date locale, le prochain jour ouvré, l'occupation du stockage, la génération de source, la révision et une version d'observation. Vue ne recalcule ni les sections ni les filtres métier.
+
+`task_create`, `task_update`, `task_toggle` et `task_reorder` attendent la confirmation de persistance ou retournent une erreur lisible. Les actions sur une tâche existante fournissent la génération et la révision observées. Le backend calcule les voisins visibles pour le réordonnancement et vérifie que les intentions de complétion correspondent à la vue quotidienne. `task_reorder` renvoie la position cible après confirmation afin que la sélection suive la tâche déplacée ; l'absence de voisin ne provoque aucune écriture. Vue réserve l'édition aux tâches actives du quotidien. La création associe son attente à la session et à l'activation de la surface d'origine.
+
+L'événement `task-changed` demande une relecture de la projection, y compris lors d'une proposition optimiste, de sa confirmation, d'un retour à l'état confirmé ou d'un changement de jour. Le frontend s'abonne avant sa lecture initiale et ignore les réponses de lectures dépassées. Une surface conservée relit l'état à chaque réouverture. `desktop-status`, également versionné, reste le canal des diagnostics et de la configuration ; les réglages passent par les commandes dédiées `settings_source`, `settings_autostart` et `settings_shortcut`. `settings_choose(create)` ouvre un dialogue natif via le plugin Tauri `dialog` et renvoie le chemin choisi ou l'annulation ; la validation et l'activation restent dans `settings_source`.
 
 La cible conserve une révision runtime et la génération de source. Une action obsolète ne peut pas être appliquée à une autre ligne ou à un autre fichier. Chaque nouvelle fenêtre doit obtenir l'état courant et recevoir les mises à jour, sans dépendre d'événements émis avant son chargement.
 
@@ -436,11 +440,11 @@ L'affichage des modifications reste optimiste. Le snapshot confirmé et le fichi
 
 Une seule opération de repository est exécutée à la fois. Une création reçue pendant une écriture ou un rechargement est conservée en FIFO, puis rejouée sur le snapshot confirmé suivant. Elle n'est jamais refusée uniquement parce que le stockage est occupé. Un changement de source attend que les créations reçues soient traitées.
 
-La capture disparaît seulement après confirmation de son enregistrement. Les décisions de fermeture et les retours d'opération devront distinguer chaque session de fenêtre pour ne pas affecter une surface rouverte.
+La capture disparaît seulement après confirmation de son enregistrement. Les décisions de fermeture et les retours d'opération distinguent chaque session et activation de fenêtre pour ne pas affecter une surface rouverte.
 
 ### 9.4 Navigation et journée locale
 
-La cible conserve les interactions clavier documentées dans F1–F3 : sélection, recherche, édition, complétion, historique, aide et réordonnancement. Une touche traitée par un champ ou un bouton ne déclenche pas une seconde action de liste. Ces interactions restent à porter et à vérifier dans Vue.
+Vue rend les interactions clavier documentées dans F1–F3 : sélection, recherche, édition, complétion, historique, aide et réordonnancement. Une touche traitée par un champ ou un bouton ne déclenche pas une seconde action de liste. Les scénarios DOM montent le composant et vérifient ces interactions avec un adaptateur IPC contrôlé ; la validation native et les limites par plateforme figurent dans le suivi de migration.
 
 Le cœur attend le prochain début de journée locale avec `next_day_delay`, puis émet la date et réarme son délai, sans polling permanent. Les projections se recalculent à partir de cette date ; le changement de jour ne modifie pas le fichier. La date est aussi revérifiée lors de la consultation de l'état d'une nouvelle surface.
 
@@ -883,6 +887,8 @@ Un changement de source est transactionnel.
 
 Le nouveau chemin n'est enregistré dans `config.toml` qu'après validation.
 
+Le chemin choisi est résolu et canonisé après ouverture valide. Le repository actif, le watcher et la configuration utilisent le même chemin absolu, y compris lorsqu'un lien symbolique a été choisi. Au démarrage, la source configurée est également canonisée après sa création ou sa validation, avant l'ouverture du runtime et du watcher.
+
 ---
 
 ### 20.1 Aucun déplacement automatique
@@ -1174,11 +1180,12 @@ src-tauri/
     ├── main.rs
     ├── desktop.rs
     ├── linux.rs
-    └── surfaces.rs
+    ├── surfaces.rs
+    └── tasks.rs            projections et intentions IPC
 tests/                     parcours persistés F2/F3
 ```
 
-Les manifests Rust ont chacun leur lockfile. Aucun workspace Cargo ni crate de domaine supplémentaire n'est introduit. Le contrat de tâches et les composants fonctionnels Vue seront ajoutés dans les lots validés suivants.
+Les manifests Rust ont chacun leur lockfile. Aucun workspace Cargo ni crate de domaine supplémentaire n'est introduit. Le contrat de tâches est dans `src-tauri/src/tasks.rs`. Le frontend partage `Icon.vue` et `SyntaxHelp.vue` entre ses surfaces. `frontend/tests/` vérifie les interactions DOM et `tests/migration_runtime.rs` les protections de coordination.
 
 ---
 

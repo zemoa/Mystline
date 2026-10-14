@@ -1,0 +1,18 @@
+{
+  "profile": "debug / custom-protocol / Wayland / données temporaires / autostart et raccourcis OS inhibés",
+  "result": "failed",
+  "probeDirectory": "/tmp/mystline-functional-probe-20261013-oE1Jod",
+  "exitCode": 134,
+  "stderr": "corrupted double-linked list",
+  "observed": {
+    "firstReloadUtc": "2026-10-13T20:40:33.653462Z",
+    "lastReloadUtc": "2026-10-13T20:41:07.988450Z",
+    "reloadOperationsAtRevisionZero": 233372,
+    "surfaceCreatedLogEntries": 0
+  },
+  "finding": "Le watcher accepte les événements d'accès du fichier et réenclenche une lecture après chaque reload. Une correction et une nouvelle sonde sont nécessaires.",
+  "limitations": [
+    "Aucun parcours graphique fonctionnel validé par cet essai.",
+    "La sortie avec corruption mémoire est observée ; son lien causal avec la boucle n'est pas prouvé."
+  ]
+}

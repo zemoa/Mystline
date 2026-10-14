@@ -1,0 +1,60 @@
+{
+  "profile": "debug / portage fonctionnel / raccourcis et autostart non modifiés",
+  "window_mode": "hide",
+  "session_type": "wayland",
+  "startup_without_windows": true,
+  "capture_ready_ms": [
+    274.738376,
+    0.49103899999999995,
+    0.35823099999999997
+  ],
+  "native_focus_observed": [
+    true,
+    true,
+    true
+  ],
+  "resident_memory_before_windows": {
+    "processes": 1,
+    "rss_kib": 84124,
+    "pss_kib": 59805
+  },
+  "resident_memory_after_windows": {
+    "processes": 5,
+    "rss_kib": 954792,
+    "pss_kib": 371295
+  },
+  "resident_memory_after_10_seconds": {
+    "processes": 5,
+    "rss_kib": 955852,
+    "pss_kib": 371728
+  },
+  "second_instance_exit_success": true,
+  "watcher_valid_reload": true,
+  "watcher_invalid_preserved": true,
+  "all_windows_destroyed": false,
+  "visible_windows_after_close": 0,
+  "retained_native_windows_after_close": 3,
+  "capture_drafts_reset": true,
+  "capture_input_focused": true,
+  "repeated_open_keeps_draft": true,
+  "capture_webview_sessions": [
+    1,
+    1,
+    1
+  ],
+  "panel_toggle_reopens_same_window": true,
+  "native_close_masks_settings": true,
+  "capture_escape_masks_window": true,
+  "functional_capture_confirmed": true,
+  "invalid_capture_preserves_draft": true,
+  "completion_and_history_persisted": true,
+  "stale_ipc_rejected": true,
+  "source_switch_transactional": true,
+  "isolated_settings_persisted": true,
+  "settings_layout": {
+    "lastSaveButtonBottom": 635,
+    "surfaceClientHeight": 800,
+    "surfaceScrollHeight": 800,
+    "viewportHeight": 800
+  }
+}

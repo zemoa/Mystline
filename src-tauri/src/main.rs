@@ -6,6 +6,7 @@ mod linux;
 #[cfg(debug_assertions)]
 mod probe;
 mod surfaces;
+mod tasks;
 
 fn main() {
     desktop::run().expect("Impossible de démarrer Mystline");

@@ -1,6 +1,6 @@
 # F3-terminer-et-suivre-ses-taches — Terminer et suivre ses tâches
 
-> Migration Tauri/Vue : ces règles restent le comportement cible. Le socle fournit des surfaces prototypes ; leur portage fonctionnel est suivi dans [la migration](../migration-tauri-vue.md).
+> Migration Tauri/Vue : ces règles restent la référence fonctionnelle. Le portage F0–F5 et sa validation sont suivis dans [la migration](../migration-tauri-vue.md).
 
 ## Objectif et périmètre
 
@@ -37,7 +37,7 @@ F3 ne définit ni la création (F1), ni les commandes `/p`, `/d`, les tags, la r
 
 ## Tests comme documentation
 
-Les règles Rust de F3 sont implémentées ; leur interface Vue reste à porter. Les scénarios emploient des noms français, les références `RG-F3-xx` et les commentaires **Étant donné / Quand / Alors**. Les parcours persistés utilisent des fichiers temporaires et des dates fixes : vendredi **2026-10-09**, samedi **2026-10-10**, prochain jour ouvré **2026-10-12**. Aucun test n'attend minuit ni ne dépend de la date courante pour ces scénarios.
+Les règles Rust et leur interface Vue sont implémentées. Les scénarios emploient des noms français, les références `RG-F3-xx` et les commentaires **Étant donné / Quand / Alors**. Les parcours persistés utilisent des fichiers temporaires et des dates fixes : vendredi **2026-10-09**, samedi **2026-10-10**, prochain jour ouvré **2026-10-12**. Aucun test n'attend minuit ni ne dépend de la date courante pour ces scénarios.
 
 Les [spécifications exécutables F3](../../tests/f3_documentation.rs) vérifient le résultat dans le panneau, l'historique et le fichier après réouverture. Les [tests du snapshot UI](../../src/runtime/task_store.rs) vérifient l'affichage avant écriture, la resynchronisation après échec et le rejet des commandes ou résultats provenant d'un ancien fichier source.
 
@@ -60,4 +60,4 @@ Exécuter les parcours : `cargo test --test f3_documentation -- --nocapture`. Ex
 
 Vérifications graphiques complémentaires sur Windows, X11 et Wayland : case et titre barré, deadline terminée sans alerte de retard, focus visible du bouton d'historique, titres longs et défilement, passage de jour avec le panneau ouvert. Les tests sans fenêtre ne remplacent pas ces vérifications.
 
-Les scénarios propres aux widgets de l’ancienne interface ont été retirés avec Iced. Leur couverture clavier, sélection, focus et événements reste à rétablir dans les lots Vue concernés ; voir [le suivi de migration](../migration-tauri-vue.md).
+Les scénarios propres aux widgets de l'ancienne interface ont été retirés avec Iced. Les [tests DOM Vue](../../frontend/tests/App.test.ts) couvrent désormais la complétion au clavier, le rôle des touches dans les champs, le passage à l'historique et les réponses différées. Les [tests du contrat](../../src-tauri/src/tasks_tests.rs) vérifient la fin de journée, l'historique, les filtres et les intentions autorisées. Les limites de cette couverture et les résultats de la sonde native figurent dans [le suivi de migration](../migration-tauri-vue.md).

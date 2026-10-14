@@ -16,7 +16,7 @@ L’application est prévue pour Windows et Linux, avec des données conservées
 
 La branche `migration/tauri-vue` remplace directement Iced par Tauri 2 et Vue 3. Le cœur Rust, le format Markdown et les tests de comportements persistés sont conservés.
 
-Le premier lot fournit le socle résident, le tray, les raccourcis et trois surfaces prototypes. La capture n'enregistre pas encore de tâche, le panneau n'affiche pas encore la liste et les paramètres sont consultatifs. Les fonctionnalités F1–F5 restent la cible des lots suivants, soumis à validation. Voir [le suivi de migration](docs/migration-tauri-vue.md).
+Le portage fonctionnel F0–F5 vers Tauri/Vue est implémenté : capture persistée, panneau quotidien, organisation, historique, paramètres et raccourcis modifiables. Des agents dédiés à l'implémentation, la revue et les tests ont vérifié les changements. Les résultats et les limites de validation native par plateforme figurent dans [le suivi de migration](docs/migration-tauri-vue.md) et le [tableau d'avancement](docs/validation/migration-agents.html).
 
 ## Lancer le socle Tauri
 
@@ -31,9 +31,9 @@ pnpm run desktop:dev
 
 Le programme reprend `config.toml` et `tasks.md` dans le répertoire de configuration habituel. Il démarre sans fenêtre. Le tray ouvre les trois surfaces ; Échap, le bouton de fermeture ou une fermeture native masque la fenêtre sans arrêter l'application. Elle est réutilisée au prochain appel, avec un brouillon neuf. « Quitter » arrête le cœur résident.
 
-## Parcours fonctionnels à rétablir
+## Parcours fonctionnels
 
-Les parcours ci-dessous décrivent le comportement cible. Ils ne sont pas encore disponibles dans les surfaces Vue du premier lot.
+Les parcours ci-dessous sont portés dans les surfaces Vue. Leur validation et les vérifications restant à effectuer par plateforme figurent dans le suivi de migration.
 
 `Ctrl+Shift+Espace` (ou « Capture rapide » dans le tray) ouvre la saisie : saisir un titre et appuyer sur Entrée pour l'enregistrer, ou Échap pour annuler. Facultativement, ajouter `/p jeudi`, `/d 2026-10-09` et `#mission`. Les dates acceptées sont `YYYY-MM-DD`, `aujourd'hui`, `demain` ou un jour de semaine français. Un titre vide, une commande répétée ou une date invalide ne sont pas enregistrés ; une erreur laisse le texte dans la saisie. Pour écrire un token littéral, utiliser `\#mission` ou `\/p vendredi` ; un antislash littéral s'écrit `\\`. F1 affiche l'aide et Échap la ferme en premier.
 
@@ -51,7 +51,7 @@ Les deux raccourcis globaux se modifient dans **Paramètres** en saisissant une 
 
 Les diagnostics techniques sont écrits dans des fichiers quotidiens `logs/mystline.log.YYYY-MM-DD` du répertoire de configuration. Ils décrivent les opérations, révisions et erreurs de stockage sans enregistrer le contenu des tâches.
 
-Sur Wayland, les raccourcis passent par **XDG Global Shortcuts** : le portail du bureau peut demander une autorisation ou refuser une combinaison ; les paramètres indiquent alors son état. L'icône de tray Linux utilise StatusNotifierItem (KSNI) et requiert un bureau qui l'affiche. Pour conserver le démarrage automatique après le développement, lancer un binaire installé à un emplacement stable plutôt que `target/debug/mystline`.
+Sur Wayland, les raccourcis passent par **XDG Global Shortcuts** : le portail du bureau peut demander une autorisation ou refuser une combinaison ; les paramètres indiquent alors son état. L'icône de tray Linux utilise StatusNotifierItem (KSNI) et requiert un bureau qui l'affiche. Pour conserver le démarrage automatique après le développement, lancer un binaire installé à un emplacement stable plutôt que `src-tauri/target/debug/mystline-desktop`.
 
 ## Documentation
 

@@ -68,56 +68,84 @@ impl Tray {
 }
 
 #[cfg(target_os = "linux")]
-pub async fn portal_shortcuts(
-    config: config::Shortcuts,
+pub async fn portal_shortcut(
+    value: String,
+    capture: bool,
+    generation: u64,
+    mut stop: tokio::sync::oneshot::Receiver<()>,
 ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     use ashpd::desktop::{
         CreateSessionOptions,
         global_shortcuts::{BindShortcutsOptions, GlobalShortcuts, NewShortcut},
     };
-    use futures::{FutureExt, StreamExt};
+    use futures::StreamExt;
     let portal = GlobalShortcuts::new().await?;
     let session = portal
         .create_session(CreateSessionOptions::default())
         .await?;
-    let activated = portal.receive_activated().await?;
-    let capture_trigger = portal_trigger(&config.capture)?;
-    let panel_trigger = portal_trigger(&config.panel)?;
-    let shortcuts = [
-        NewShortcut::new("capture", "Capture rapide")
-            .preferred_trigger(Some(capture_trigger.as_str())),
-        NewShortcut::new("panel", "Ouvrir le panneau")
-            .preferred_trigger(Some(panel_trigger.as_str())),
-    ];
-    let response = portal
-        .bind_shortcuts(&session, &shortcuts, None, BindShortcutsOptions::default())
-        .await?
-        .response()?;
-    let mut capture_active = response.shortcuts().iter().any(|s| s.id() == "capture");
-    let mut panel_active = response.shortcuts().iter().any(|s| s.id() == "panel");
-    emit(Event::ShortcutStatus(capture_active, panel_active));
-    let changed = portal.receive_shortcuts_changed().await?;
-    futures::pin_mut!(activated, changed);
-    loop {
-        futures::select! {
-            activation = activated.next().fuse() => match activation {
-                Some(activation) => match activation.shortcut_id() {
-                    "capture" if capture_active => emit(Event::Capture),
-                    "panel" if panel_active => emit(Event::Panel),
-                    _ => (),
+    // Session exposes its object path through Serialize, not a public accessor.
+    let session_path = serde_json::to_value(&session)?
+        .as_str()
+        .ok_or("Session portail invalide")?
+        .to_owned();
+    let id = if capture { "capture" } else { "panel" };
+    let result = async {
+        let activated = portal.receive_activated().await?;
+        let changed = portal.receive_shortcuts_changed().await?;
+        let closed = session.receive_closed().await?;
+        let trigger = portal_trigger(&value)?;
+        let shortcuts = [NewShortcut::new(
+            id,
+            if capture {
+                "Capture rapide"
+            } else {
+                "Ouvrir le panneau"
+            },
+        )
+        .preferred_trigger(Some(trigger.as_str()))];
+        let response = portal
+            .bind_shortcuts(&session, &shortcuts, None, BindShortcutsOptions::default())
+            .await?
+            .response()?;
+        let mut active = response
+            .shortcuts()
+            .iter()
+            .any(|shortcut| shortcut.id() == id);
+        emit(Event::PortalStatus {
+            capture,
+            generation,
+            active,
+        });
+        futures::pin_mut!(activated, changed, closed);
+        loop {
+            tokio::select! {
+                activation = activated.next() => match activation {
+                    Some(activation) if activation.session_handle().as_str() == session_path && activation.shortcut_id() == id && active => emit(Event::PortalActivated { capture, generation }),
+                    Some(_) => (),
+                    None => break,
                 },
-                None => break,
-            },
-            update = changed.next().fuse() => match update {
-                Some(update) => {
-                    capture_active = update.shortcuts().iter().any(|s| s.id() == "capture");
-                    panel_active = update.shortcuts().iter().any(|s| s.id() == "panel");
-                    emit(Event::ShortcutStatus(capture_active, panel_active));
-                }
-                None => break,
-            },
+                update = changed.next() => match update {
+                    Some(update) if update.session_handle().as_str() == session_path => {
+                        active = update.shortcuts().iter().any(|shortcut| shortcut.id() == id);
+                        emit(Event::PortalStatus { capture, generation, active });
+                    },
+                    Some(_) => (),
+                    None => break,
+                },
+                _ = closed.next() => break,
+            }
         }
-    }
+        Ok::<(), Box<dyn std::error::Error + Send + Sync>>(())
+    };
+    let result = tokio::select! { _ = &mut stop => Ok(()), result = result => result };
+    let close = session.close().await;
+    emit(Event::PortalStatus {
+        capture,
+        generation,
+        active: false,
+    });
+    result?;
+    close?;
     Ok(())
 }
 

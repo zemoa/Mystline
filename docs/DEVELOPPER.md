@@ -13,11 +13,13 @@
 
 Depuis la racine, vérifier la bibliothèque : `cargo fmt --check`, `cargo test`, `cargo clippy --all-targets -- -D warnings` et `cargo check --target x86_64-pc-windows-gnu` si la cible Windows est installée. Pour le backend : `cargo fmt --manifest-path src-tauri/Cargo.toml --check`, `cargo test --manifest-path src-tauri/Cargo.toml`, `cargo clippy --manifest-path src-tauri/Cargo.toml --all-targets -- -D warnings`. Toujours depuis la racine, exécuter `pnpm install --frozen-lockfile` et `pnpm run build` pour le frontend, `pnpm run desktop:dev` pour démarrer l'application complète, ou `pnpm run desktop:build` pour construire son binaire sans packaging. Le workspace pnpm, le lockfile et la CLI Tauri sont gérés à la racine ; les scripts `dev` et `build` délèguent au frontend. Le backend Windows complet nécessite la chaîne de compilation et les prérequis Tauri Windows ; le check GNU de la bibliothèque ne le remplace pas. Tester les interactions tray et raccourcis sur des sessions Windows, X11 et Wayland : une compilation croisée ne vérifie pas les comportements du compositeur ou du shell.
 
-## Sonde graphique du lot 1
+## Sonde graphique debug
 
 Après `pnpm run build` à la racine, construire avec `cargo build --manifest-path src-tauri/Cargo.toml --features custom-protocol`. En debug uniquement, définir `MYSTLINE_PROBE_DIR` vers un répertoire temporaire neuf puis lancer `src-tauri/target/debug/mystline-desktop`. Le rapport `probe-report.json` est écrit dans ce répertoire.
 
 La sonde ouvre, masque et réutilise les trois surfaces, mesure le chargement de la capture, vérifie l'instance unique et le watcher, et mesure la mémoire des processus sous Linux avant/après les fenêtres. Elle utilise une source temporaire et ne modifie ni autostart ni raccourcis système. Elle ne remplace donc pas la validation manuelle de ces intégrations. Elle n'est pas compilée dans un binaire release. Le polling borné est réservé à cette sonde ; l'application utilise les événements natifs et un réveil journalier.
+
+Le portage fonctionnel étend cette sonde avec la soumission DOM de captures valides et invalides, la confirmation d'écriture, les projections natives, la complétion, l'historique, les révisions obsolètes et les changements de source. Les commandes d'observation supplémentaires restent confinées au mode sonde debug. Les changements de configuration utilisent son répertoire temporaire et inhibent les modifications d'autostart et de raccourcis au niveau du système.
 
 Le comportement par défaut de la sonde est celui de D7 : masquage et réutilisation. Pour retrouver la référence historique de destruction, ajouter `--probe-destroy-windows` ; cette variante est confinée à la sonde debug avec `MYSTLINE_PROBE_DIR`. Les deux modes suivent le même parcours et attendent dix secondes après fermeture, avec une source temporaire vide dans un processus neuf. La sonde vérifie également le focus du champ de capture, l'effacement du brouillon à la fermeture et sa conservation lors d'une simple demande de focus. Le mode normal vérifie aussi la fermeture native des paramètres et le basculement du panneau. Les commandes d'observation du DOM sont réservées à la sonde et exclues du profil release.
 
@@ -25,11 +27,19 @@ Le comportement par défaut de la sonde est celui de D7 : masquage et réutilisa
 
 Les tests F2 servent de documentation : nommer chaque scénario selon le comportement utilisateur, citer sa règle `RG-F2-xx` et structurer les commentaires en **Étant donné / Quand / Alors**. Vérifier des résultats observables (titre, métadonnées, section, état de saisie, fichier après réouverture), plutôt que recopier les branches de l'implémentation.
 
-Les [parcours persistés](../tests/f2_documentation.rs) s'exécutent avec `cargo test --test f2_documentation`. Ils couvrent capture enrichie, édition, annulation, permutations filtrées, erreurs et conflits avec un éditeur externe. Les tests du [parseur](../src/presentation/input.rs) et du [panneau](../src/presentation/panel.rs) s'exécutent avec `cargo test --lib presentation::`. Les tests du snapshot et de sa coordination sont dans `src/runtime/` : `cargo test --lib runtime::`. Les tests spécifiques à Iced ont été retirés ; leur couverture des interactions devra être rétablie dans les lots Vue concernés, comme indiqué dans [le suivi de migration](migration-tauri-vue.md).
+Les [parcours persistés](../tests/f2_documentation.rs) s'exécutent avec `cargo test --test f2_documentation`. Ils couvrent capture enrichie, édition, annulation, permutations filtrées, erreurs et conflits avec un éditeur externe. Les tests du [parseur](../src/presentation/input.rs) et du [panneau](../src/presentation/panel.rs) s'exécutent avec `cargo test --lib presentation::`. Les tests du snapshot et de sa coordination sont dans `src/runtime/` : `cargo test --lib runtime::`. Les tests spécifiques à Iced ont été retirés ; les scénarios DOM Vue et les tests du contrat IPC complètent désormais les parcours Rust, comme indiqué dans [le suivi de migration](migration-tauri-vue.md).
 
 Injecter des dates fixes dans les fonctions de présentation. Simuler le changement de journée en changeant la date fournie, sans attente réelle ni dépendance au fuseau de la machine. Utiliser des fichiers temporaires pour la persistance ; comparer aussi la révision et le contenu du fichier après une action refusée. L'[index F2](features/F2-organiser-et-retrouver-ses-taches.md#tests-comme-documentation) relie chaque règle aux scénarios exécutables.
 
 La validation graphique complémentaire reste nécessaire sur Windows, X11 et Wayland pour le focus système, le redimensionnement des fenêtres et le défilement. Mentionner explicitement si ces vérifications n'ont pas été effectuées.
+
+## Vérifier le portage fonctionnel Vue
+
+Depuis la racine, `pnpm --dir frontend test` exécute les scénarios DOM de `frontend/tests/App.test.ts` avec Vitest, Vue Test Utils et jsdom. Ils montent le composant Vue et remplacent les appels Tauri par un adaptateur contrôlé : ils vérifient les interactions et les réponses différées du frontend, sans valider l'intégration native ni la persistance réelle.
+
+`cargo test --test migration_runtime` vérifie les captures en attente après conflit, les résultats dupliqués et le rejet d'une commande provenant d'une ancienne source. `cargo test --manifest-path src-tauri/Cargo.toml tasks::tests` vérifie les DTO JSON et les intentions exposées à Vue : projections, recherche et tag, historique, brouillons échappés et voisins visibles.
+
+Ces scénarios complètent les parcours persistés F2/F3 et les vérifications de compilation. Les tests sans fenêtre et les mocks IPC ne remplacent pas une sonde native ni les essais des raccourcis, du tray et de l'autostart dans chaque session graphique.
 
 ## Conventional Commits
 
