@@ -864,6 +864,7 @@ Exemple :
 ```toml
 tasks_file = "/chemin/vers/tasks.md"
 autostart = true
+show_tasks_on_startup = true
 
 [shortcuts]
 capture = "Ctrl+Shift+Espace"
@@ -1029,7 +1030,7 @@ Le tray ne contient :
 
 ## 24. Cycle de vie des surfaces
 
-Le cœur Tauri démarre sans fenêtre visible. La capture et le panneau sont créés à leur première ouverture, puis conservés et masqués à la fermeture. Les paramètres et l'historique sont des vues du panneau : les paramètres remplacent son contenu dans la même fenêtre native.
+Le cœur Tauri ouvre le panneau quotidien au démarrage lorsque `show_tasks_on_startup` est activé. Ce réglage persistant, indépendant de `autostart`, vaut `true` par défaut, y compris lorsque la clé manque dans une configuration existante. Sa modification dans les paramètres s’applique au prochain démarrage. Lorsqu’il est désactivé, le cœur démarre sans fenêtre visible. La sonde debug inhibe cette ouverture pour conserver son scénario initial sans fenêtre. La capture et le panneau sont créés à leur première ouverture, puis conservés et masqués à la fermeture. Les paramètres et l'historique sont des vues du panneau : les paramètres remplacent son contenu dans la même fenêtre native.
 
 La stratégie de conservation et masquage après première ouverture a été validée pour D7 après le test comparatif du lot 1. Elle privilégie les réouvertures et ne crée pas de WebView avant le premier appel de sa surface.
 

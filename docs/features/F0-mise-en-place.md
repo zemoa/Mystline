@@ -10,17 +10,17 @@ Références : [SFG, §3–4 et §24](../SFG.md) ; [architecture, §2–5 et §1
 
 ## Parcours couverts
 
-1. Au premier lancement, l'application prépare sa configuration et un fichier de tâches local vide, puis reste en arrière-plan sans ouvrir le panneau.
-2. Aux lancements suivants, elle reprend la source de tâches configurée et n'ouvre aucune fenêtre principale.
+1. Au premier lancement, l'application prépare sa configuration et un fichier de tâches local vide, puis ouvre le panneau quotidien par défaut.
+2. Aux lancements suivants, elle reprend la source de tâches configurée et ouvre le panneau quotidien si l’option correspondante est activée.
 3. Depuis le tray, l'utilisateur peut accéder à la capture et au panneau, ouvrir les paramètres ou quitter explicitement l'application.
-4. Depuis les paramètres, il peut désactiver ou réactiver le démarrage automatique et choisir un nouveau fichier de tâches ou un fichier existant.
+4. Depuis les paramètres, il peut désactiver ou réactiver le démarrage automatique, choisir d’ouvrir ou non la liste des tâches au démarrage et sélectionner un nouveau fichier de tâches ou un fichier existant.
 5. Une modification valide de `tasks.md` depuis un autre outil devient visible dans l'application sans nécessiter son redémarrage.
 
 ## Règles de gestion
 
 - **RG-F0-01 — Exécution locale.** Les données restent sur la machine ; la gestion des tâches ne requiert ni compte, ni connexion Internet, ni cloud, ni synchronisation. Seule la mise à jour de l’application utilise GitHub, conformément à la SFG ; son échec ne bloque pas l’usage local.
-- **RG-F0-02 — Processus résident.** L'application démarre à l'ouverture de session par défaut, sans montrer son panneau ou sa capture. Fermer une surface la masque et ne quitte pas le processus ; seule l'action explicite « Quitter » y met fin. Un second lancement dans la même session quitte silencieusement.
-- **RG-F0-03 — Configuration initiale.** La configuration est conservée dans `config.toml` dans le répertoire de configuration standard de l'utilisateur. Au premier lancement, une source locale `tasks.md` est créée si nécessaire dans un emplacement utilisateur, distinct de l'exécutable. Le chemin du fichier de tâches et l'activation du démarrage automatique sont conservés entre les sessions.
+- **RG-F0-02 — Processus résident.** L'application démarre à l'ouverture de session par défaut. À chaque démarrage, elle ouvre le panneau quotidien si l’option « Ouvrir la liste des tâches au démarrage » est activée (valeur par défaut), sinon elle reste sans fenêtre visible. Fermer une surface la masque et ne quitte pas le processus ; seule l'action explicite « Quitter » y met fin. Un second lancement dans la même session quitte silencieusement.
+- **RG-F0-03 — Configuration initiale.** La configuration est conservée dans `config.toml` dans le répertoire de configuration standard de l'utilisateur. Au premier lancement, une source locale `tasks.md` est créée si nécessaire dans un emplacement utilisateur, distinct de l'exécutable. Le chemin du fichier de tâches, l'activation du démarrage automatique et l’ouverture du panneau au démarrage sont conservés entre les sessions. Ces deux options sont indépendantes. Une configuration existante sans option d’ouverture du panneau l’active par défaut.
 - **RG-F0-04 — Source configurable.** Dans les paramètres, l'utilisateur peut créer un fichier de tâches à l'emplacement choisi ou sélectionner un fichier existant. Le nouveau fichier doit pouvoir être créé et chargé, ou le fichier existant doit être valide, avant de devenir la source active et avant l'enregistrement de son chemin. L'ancien fichier n'est jamais déplacé ni supprimé. En cas d'échec, la source actuelle reste active.
 - **RG-F0-05 — Source manquante.** Au démarrage, si le chemin configuré n'existe plus, l'application recrée les répertoires parents et un fichier vide, puis poursuit. Une erreur d'accès réelle n'est pas traitée comme un simple fichier absent : l'application ne remplace pas la source par un fichier vide silencieusement.
 - **RG-F0-06 — Raccourcis initiaux.** Deux raccourcis globaux distincts sont demandés au démarrage : `Ctrl+Shift+Espace` pour la capture et `Ctrl+Shift+T` pour le panneau. Sous Wayland, leur activation dépend de l'autorisation et des combinaisons accordées par le portail XDG Global Shortcuts. Leur modification et la gestion des conflits d'enregistrement appartiennent à F4. Le tray reste un accès aux actions si un raccourci ne fonctionne pas.
@@ -32,7 +32,7 @@ Références : [SFG, §3–4 et §24](../SFG.md) ; [architecture, §2–5 et §1
 
 ## Vérifications fonctionnelles
 
-- Sur Windows et Linux, un premier lancement crée une source locale utilisable, puis les lancements suivants restent discrets et une seconde instance ne duplique pas le processus.
+- Sur Windows et Linux, un premier lancement crée une source locale utilisable, puis la liste s’ouvre à chaque démarrage par défaut ; désactiver l’option maintient les lancements suivants en arrière-plan et une seconde instance ne duplique pas le processus.
 - Le tray permet d'atteindre les surfaces et de quitter ; la fermeture d'une surface laisse l'application accessible.
 - Un clic principal ouvre le panneau ; des clics répétés le gardent ouvert sans dupliquer sa fenêtre. Le clic secondaire donne accès au menu.
 - La désactivation du démarrage automatique est conservée ; choisir un fichier existant valide bascule sur ce fichier, alors qu'un fichier invalide laisse la source actuelle intacte.

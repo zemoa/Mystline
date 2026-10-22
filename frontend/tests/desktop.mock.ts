@@ -35,6 +35,7 @@ export const status = {
   revision: 7,
   today: '2026-10-09',
   autostart: true,
+  showTasksOnStartup: true,
   captureShortcut: 'Ctrl+Shift+Espace',
   panelShortcut: 'Ctrl+Shift+T',
   captureActive: true,

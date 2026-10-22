@@ -26,7 +26,7 @@ La migration prend comme base l'état du dossier, modifications non commitées c
 - Garder la sérialisation des écritures, la FIFO de captures et les protections de révision/génération.
 - Installer un frontend Vue commun à la capture et au panneau ; les paramètres sont une vue qui remplace le contenu du panneau.
 - Brancher les intégrations système validées, le watcher et le réveil au changement de journée.
-- Vérifier démarrage invisible, absence de duplication, focus, fermeture/réouverture et survie du cœur résident.
+- Vérifier ouverture du panneau au démarrage par défaut et démarrage invisible lorsque l’option est désactivée, absence de duplication, focus, fermeture/réouverture et survie du cœur résident.
 - Mesurer mémoire au repos et délai d'ouverture.
 
 Les surfaces livrées par ce lot étaient des prototypes : capture sans création, panneau sans liste et paramètres consultatifs. Le cœur et ses tests de comportements persistés ont été conservés. Le contrat fonctionnel Vue/Rust est défini dans le portage autorisé le 13 octobre.

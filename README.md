@@ -36,7 +36,7 @@ téléchargent les nouvelles versions signées. Dans les paramètres, **Installe
 applique la mise à jour au moment choisi. Sans connexion, les tâches restent utilisables.
 Le paquet `.deb` se met à jour en installant le nouveau paquet téléchargé depuis la release.
 
-Le programme reprend `config.toml` et `tasks.md` dans le répertoire de configuration habituel. Il démarre sans fenêtre. Le tray ouvre la capture ou le panneau ; les paramètres remplacent le contenu du panneau dans cette même fenêtre. Échap, le bouton de fermeture ou une fermeture native masque la fenêtre sans arrêter l'application. Elle est réutilisée au prochain appel, avec un brouillon neuf. « Quitter » arrête le cœur résident.
+Le programme reprend `config.toml` et `tasks.md` dans le répertoire de configuration habituel. Il ouvre par défaut la liste quotidienne des tâches à chaque démarrage. Dans **Paramètres → Démarrage**, décocher **Ouvrir la liste des tâches au démarrage** permet de démarrer en arrière-plan ; ce choix est conservé et indépendant du démarrage avec la session. Le tray ouvre la capture ou le panneau ; les paramètres remplacent le contenu du panneau dans cette même fenêtre. Échap, le bouton de fermeture ou une fermeture native masque la fenêtre sans arrêter l'application. Elle est réutilisée au prochain appel, avec un brouillon neuf. « Quitter » arrête le cœur résident.
 
 ## Parcours fonctionnels
 

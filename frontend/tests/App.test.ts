@@ -480,6 +480,22 @@ describe('paramètres', () => {
     expect(app.get<HTMLButtonElement>('#capture-shortcut + button').element.disabled).toBe(false)
   })
 
+  it('permet de désactiver puis réactiver la liste au démarrage indépendamment de la session', async () => {
+    const app = await open('settings')
+    const checkbox = app.get<HTMLInputElement>('#show-tasks-on-startup')
+    expect(checkbox.element.checked).toBe(true)
+    for (const enabled of [false, true]) {
+      desktop.invoke.mockImplementation(async command => command === 'desktop_status'
+        ? { ...status, version: status.version + 1, showTasksOnStartup: enabled } : undefined)
+      await checkbox.setValue(enabled)
+      await flushPromises()
+      expect(desktop.invoke).toHaveBeenCalledWith('settings_show_tasks_on_startup', { enabled })
+      expect(checkbox.element.checked).toBe(enabled)
+      expect(app.get<HTMLInputElement>('.check-setting input').element.checked).toBe(true)
+    }
+    expect(desktop.invoke.mock.calls.some(([command]) => command === 'settings_autostart')).toBe(false)
+  })
+
   it('présente les états actifs et conserve la combinaison refusée pour correction', async () => {
     const app = await open('settings')
     expect(app.get('#capture-shortcut').element).toHaveProperty('value', 'Ctrl+Shift+Espace')

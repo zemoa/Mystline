@@ -124,9 +124,12 @@ Les échanges réseau concernent uniquement les versions et les installateurs ; 
 ni configuration personnelle n’est transmise. Le paquet Linux `.deb` se met à jour par
 réinstallation. Les builds de développement ne vérifient pas les releases.
 
-Elle reste ensuite en arrière-plan.
-
-Elle ne doit pas afficher automatiquement sa fenêtre principale au démarrage.
+À chaque démarrage de l’application, la liste quotidienne des tâches s’ouvre par défaut pour
+voir les tâches à faire aujourd’hui. L’option **Ouvrir la liste des tâches au démarrage**,
+dans les paramètres, permet de désactiver ou réactiver cet affichage. Elle est activée
+par défaut, y compris avec une configuration existante, et son choix est conservé.
+Elle est indépendante du démarrage automatique avec la session. Lorsqu’elle est désactivée,
+l’application démarre en arrière-plan sans fenêtre visible.
 
 Deux interactions principales doivent être accessibles par raccourcis clavier globaux.
 

@@ -23,7 +23,13 @@ pub enum ConfigError {
 pub struct Config {
     pub tasks_file: PathBuf,
     pub autostart: bool,
+    #[serde(default = "show_tasks_on_startup_default")]
+    pub show_tasks_on_startup: bool,
     pub shortcuts: Shortcuts,
+}
+
+fn show_tasks_on_startup_default() -> bool {
+    true
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
@@ -154,6 +160,7 @@ pub fn load_or_create(dir: &Path) -> Result<Config, ConfigError> {
             let config = Config {
                 tasks_file: dir.join("tasks.md"),
                 autostart: true,
+                show_tasks_on_startup: true,
                 shortcuts: Shortcuts::default(),
             };
             save(dir, &config)?;
@@ -228,9 +235,25 @@ mod tests {
         let dir = tempfile::tempdir().unwrap();
         let mut config = load_or_create(dir.path()).unwrap();
         assert!(config.autostart);
+        assert!(config.show_tasks_on_startup);
         config.autostart = false;
+        config.show_tasks_on_startup = false;
         save(dir.path(), &config).unwrap();
-        assert!(!load_or_create(dir.path()).unwrap().autostart);
+        let reopened = load_or_create(dir.path()).unwrap();
+        assert!(!reopened.autostart);
+        assert!(!reopened.show_tasks_on_startup);
+    }
+    #[test]
+    fn existing_config_opens_tasks_by_default_independently_of_autostart() {
+        let dir = tempfile::tempdir().unwrap();
+        fs::write(
+            dir.path().join("config.toml"),
+            "tasks_file = 'tasks.md'\nautostart = false\n[shortcuts]\ncapture = 'Ctrl+Shift+Espace'\npanel = 'Ctrl+Shift+T'\n",
+        )
+        .unwrap();
+        let config = load_or_create(dir.path()).unwrap();
+        assert!(config.show_tasks_on_startup);
+        assert!(!config.autostart);
     }
     #[test]
     fn shortcuts_accept_french_space_and_detect_equivalent_collision() {

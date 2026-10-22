@@ -81,6 +81,7 @@ pub struct DesktopStatus {
     revision: u64,
     today: String,
     autostart: bool,
+    show_tasks_on_startup: bool,
     capture_shortcut: String,
     panel_shortcut: String,
     capture_active: bool,
@@ -99,6 +100,7 @@ pub fn desktop_status(app: AppHandle) -> DesktopStatus {
         revision: resident.runtime.tasks.snapshot.revision,
         today: Local::now().date_naive().to_string(),
         autostart: resident.config.autostart,
+        show_tasks_on_startup: resident.config.show_tasks_on_startup,
         capture_shortcut: resident.config.shortcuts.capture.clone(),
         panel_shortcut: resident.config.shortcuts.panel.clone(),
         capture_active: resident.shortcuts.0,
@@ -608,6 +610,20 @@ pub fn settings_autostart(app: AppHandle, enabled: bool) -> Result<(), String> {
 }
 
 #[tauri::command]
+pub fn settings_show_tasks_on_startup(app: AppHandle, enabled: bool) -> Result<(), String> {
+    let state = app.state::<Mutex<Resident>>();
+    let mut state = state.lock().map_err(|error| error.to_string())?;
+    let mut updated = state.config.clone();
+    updated.show_tasks_on_startup = enabled;
+    config::save(&state.directory, &updated).map_err(|error| error.to_string())?;
+    state.config = updated;
+    state.version += 1;
+    drop(state);
+    publish(&app);
+    Ok(())
+}
+
+#[tauri::command]
 pub fn settings_shortcut(app: AppHandle, capture: bool, value: String) -> Result<(), String> {
     let state = app.state::<Mutex<Resident>>();
     let mut state = state.lock().map_err(|error| error.to_string())?;
@@ -797,6 +813,7 @@ pub fn run() -> Result<(), Box<dyn std::error::Error>> {
         task_reorder,
         settings_source,
         settings_autostart,
+        settings_show_tasks_on_startup,
         settings_shortcut,
         settings_choose,
         surfaces::surface_ready,
@@ -821,6 +838,7 @@ pub fn run() -> Result<(), Box<dyn std::error::Error>> {
         task_reorder,
         settings_source,
         settings_autostart,
+        settings_show_tasks_on_startup,
         settings_shortcut,
         settings_choose,
         surfaces::surface_ready,
@@ -874,6 +892,7 @@ pub fn run() -> Result<(), Box<dyn std::error::Error>> {
             } else {
                 None
             };
+            let show_tasks_on_startup = config.show_tasks_on_startup && !is_probe;
             app.manage(Mutex::new(Resident {
                 config,
                 runtime,
@@ -905,7 +924,10 @@ pub fn run() -> Result<(), Box<dyn std::error::Error>> {
                     publish(&handle);
                 }
             });
-            tracing::info!("application_started_without_windows");
+            if show_tasks_on_startup {
+                emit(Event::OpenPanel);
+            }
+            tracing::info!(show_tasks_on_startup, "application_started");
             #[cfg(debug_assertions)]
             if let Some(directory) = probe_directory {
                 crate::probe::start(app.handle().clone(), directory);
