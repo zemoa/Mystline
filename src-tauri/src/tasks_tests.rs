@@ -48,15 +48,15 @@ fn le_contrat_ipc_preserve_source_version_sections_exclusives_et_metadonnees() {
             .collect::<Vec<_>>(),
         [
             (3, "overdue"),
-            (2, "today"),
-            (1, "nextWorkday"),
-            (0, "all"),
-            (4, "all")
+            (0, "current"),
+            (2, "current"),
+            (4, "current"),
+            (1, "nextWorkday")
         ]
     );
-    assert_eq!(rows[4]["deadlineTone"], "future");
-    assert_eq!(rows[4]["completedDate"], "2026-10-09");
-    assert_eq!(rows[3]["tags"], json!(["fond"]));
+    assert_eq!(rows[3]["deadlineTone"], "future");
+    assert_eq!(rows[3]["completedDate"], "2026-10-09");
+    assert_eq!(rows[1]["tags"], json!(["fond"]));
 }
 
 #[test]
@@ -86,6 +86,59 @@ fn changement_de_jour_et_historique_utilisent_date_effective_et_filtres() {
         [1, 2, 0]
     );
     assert_eq!(history["rows"][1]["completedDate"], "2026-10-09");
+}
+
+#[test]
+fn le_lendemain_garde_les_taches_en_cours_et_actualise_retards_et_prochain_jour() {
+    // RG-F2-08/09/10, F3-04 — Étant donné les exemples de la maquette du jeudi 22.
+    let snapshot = snapshot(
+        "- [ ] Sans date\n- [ ] Jeudi @planned(2026-10-22) @deadline(2026-10-23)\n- [ ] Contrat @deadline(2026-10-22)\n- [ ] Comité @planned(2026-10-23)\n- [ ] Documentation @planned(2026-10-26)\n- [ ] Archives @planned(2026-10-24)\n- [x] Paul @completed(2026-10-22)\n",
+    );
+    let before = snapshot.tasks.clone();
+    let thursday = view(&snapshot, &ViewRequest::default(), day(22));
+    // Quand le panneau reste ouvert et que le vendredi commence.
+    let friday = view(&snapshot, &ViewRequest::default(), day(23));
+    let positions = |projection: &Value| {
+        projection["rows"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|row| {
+                (
+                    row["position"].as_u64().unwrap(),
+                    row["section"].as_str().unwrap().to_owned(),
+                )
+            })
+            .collect::<Vec<_>>()
+    };
+    // Alors les tâches restent uniques, l'inachevé reste En cours et samedi reste Plus tard.
+    assert_eq!(
+        positions(&thursday),
+        [
+            (0, "current"),
+            (1, "current"),
+            (2, "current"),
+            (6, "current"),
+            (3, "nextWorkday"),
+            (4, "later"),
+            (5, "later")
+        ]
+        .map(|(index, section)| (index, section.to_owned()))
+    );
+    assert_eq!(
+        positions(&friday),
+        [
+            (2, "overdue"),
+            (0, "current"),
+            (1, "current"),
+            (3, "current"),
+            (4, "nextWorkday"),
+            (5, "later")
+        ]
+        .map(|(index, section)| (index, section.to_owned()))
+    );
+    assert_eq!(friday["nextWorkday"], "2026-10-26");
+    assert_eq!(snapshot.tasks, before);
 }
 
 #[test]
@@ -149,7 +202,7 @@ fn les_intentions_de_lhistorique_ou_de_taches_masquees_sont_refusees() {
 fn le_deplacement_filtre_permute_les_voisins_actifs_de_la_meme_section() {
     // RG-F2-13, F3-03 — Étant donné une tâche masquée et une terminée entre deux visibles.
     let snapshot = snapshot(
-        "- [ ] A #mission\n- [ ] Masquée #tech\n- [x] Accomplie #mission @completed(2026-10-09)\n- [ ] B #mission\n- [ ] Aujourd'hui #mission @planned(2026-10-09)\n",
+        "- [ ] A #mission\n- [ ] Masquée #tech\n- [x] Accomplie #mission @completed(2026-10-09)\n- [ ] B #mission\n- [ ] Lundi #mission @planned(2026-10-12)\n",
     );
     let request = ViewRequest {
         tag: Some("mission".into()),
@@ -165,7 +218,7 @@ fn le_deplacement_filtre_permute_les_voisins_actifs_de_la_meme_section() {
             .iter()
             .map(|task| task.title.as_str())
             .collect::<Vec<_>>(),
-        ["B", "Masquée", "Accomplie", "A", "Aujourd'hui"]
+        ["B", "Masquée", "Accomplie", "A", "Lundi"]
     );
     assert!(reorder(&snapshot, &request, 0, false, day(9)).is_none());
     assert!(reorder(&snapshot, &request, 3, true, day(9)).is_none());

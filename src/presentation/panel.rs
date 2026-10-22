@@ -10,19 +10,19 @@ use std::time::Duration;
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Section {
     Overdue,
-    Today,
+    Current,
     NextWorkday,
-    All,
+    Later,
 }
 
 impl Section {
-    pub const ALL: [Self; 4] = [Self::Overdue, Self::Today, Self::NextWorkday, Self::All];
+    pub const ALL: [Self; 4] = [Self::Overdue, Self::Current, Self::NextWorkday, Self::Later];
     pub fn label(self) -> &'static str {
         match self {
             Self::Overdue => "En retard",
-            Self::Today => "Aujourd'hui",
+            Self::Current => "En cours",
             Self::NextWorkday => "Prochain jour ouvré",
-            Self::All => "Toutes les tâches",
+            Self::Later => "Plus tard",
         }
     }
 }
@@ -41,12 +41,12 @@ pub fn next_workday(today: NaiveDate) -> NaiveDate {
 pub fn section(task: &Task, today: NaiveDate) -> Section {
     if !task.completed && task.deadline.is_some_and(|date| date < today) {
         Section::Overdue
-    } else if task.planned == Some(today) {
-        Section::Today
+    } else if task.planned.is_none_or(|date| date <= today) {
+        Section::Current
     } else if task.planned == Some(next_workday(today)) {
         Section::NextWorkday
     } else {
-        Section::All
+        Section::Later
     }
 }
 
@@ -131,7 +131,7 @@ impl PanelState {
                 .filter(|(_, task)| task.completed && self.matches_filters(task))
                 .map(|(index, _)| Row {
                     index,
-                    section: Section::All,
+                    section: Section::Later,
                 })
                 .collect();
             rows.sort_by_key(|row| {
@@ -361,24 +361,24 @@ mod tests {
                     section: Section::Overdue
                 },
                 Row {
+                    index: 0,
+                    section: Section::Current
+                },
+                Row {
+                    index: 2,
+                    section: Section::Current
+                },
+                Row {
                     index: 3,
-                    section: Section::Today
+                    section: Section::Current
                 },
                 Row {
                     index: 1,
                     section: Section::NextWorkday
                 },
                 Row {
-                    index: 0,
-                    section: Section::All
-                },
-                Row {
-                    index: 2,
-                    section: Section::All
-                },
-                Row {
                     index: 5,
-                    section: Section::All
+                    section: Section::Later
                 }
             ]
         );
@@ -398,13 +398,14 @@ mod tests {
         // RG-F2-10 — Étant donné des deadlines aujourd'hui et éloignées, sans planification.
         let snapshot =
             snapshot("- [ ] Urgente @deadline(2026-10-09)\n- [ ] Éloignée @deadline(2026-10-25)\n");
-        // Quand le panneau les présente, alors elles restent dans Toutes les tâches.
+        // Quand le panneau les présente, alors elles restent En cours, sans date ajoutée.
         assert!(
             PanelState::new(date(9))
                 .rows(&snapshot)
                 .iter()
-                .all(|row| row.section == Section::All)
+                .all(|row| row.section == Section::Current)
         );
+        assert!(snapshot.tasks.iter().all(|task| task.planned.is_none()));
         assert_eq!(deadline_tone(date(9), date(9)), DeadlineTone::Today);
         assert_eq!(deadline_tone(date(25), date(9)), DeadlineTone::Future);
         assert_eq!(deadline_tone(date(8), date(9)), DeadlineTone::Overdue);
@@ -420,13 +421,13 @@ mod tests {
         let mut panel = PanelState::new(date(9));
         // Quand on recherche une partie du titre ou du tag et applique un tag exact.
         panel.query = "supp".into();
-        assert_eq!(panel.indices(&snapshot), [0, 2, 1]);
+        assert_eq!(panel.indices(&snapshot), [0, 1, 2]);
         panel.tag = Some("MISSION".into());
         assert_eq!(panel.indices(&snapshot), [0, 2]);
         assert_eq!(panel.rows(&snapshot)[1].section, Section::NextWorkday);
         // Alors retirer le filtre restaure la recherche, et aucune tâche n'est modifiée.
         panel.tag = None;
-        assert_eq!(panel.indices(&snapshot), [0, 2, 1]);
+        assert_eq!(panel.indices(&snapshot), [0, 1, 2]);
         panel.query = "introuvable".into();
         assert!(panel.indices(&snapshot).is_empty());
         assert_eq!(snapshot.tasks, before);
@@ -436,7 +437,7 @@ mod tests {
     fn le_reordonnancement_respecte_les_sections_et_les_bornes() {
         // RG-F2-13 — Étant donné deux tâches visibles séparées par une ligne masquée et une autre section.
         let snapshot = snapshot(
-            "- [ ] A #visible\n- [ ] Masquée\n- [ ] B #visible\n- [ ] Jour #visible @planned(2026-10-09)\n",
+            "- [ ] A #visible\n- [ ] Masquée\n- [ ] B #visible\n- [ ] Lundi #visible @planned(2026-10-12)\n",
         );
         let mut panel = PanelState::new(date(9));
         panel.tag = Some("visible".into());
@@ -456,10 +457,32 @@ mod tests {
         );
         let before = snapshot.tasks.clone();
         let mut panel = PanelState::new(date(9));
-        assert_eq!(panel.indices(&snapshot), [0, 1, 2]);
+        assert_eq!(panel.indices(&snapshot), [0, 2, 1]);
         // Quand la date passe à samedi, alors les sections changent sans report automatique.
         panel.today = date(10);
-        assert_eq!(panel.indices(&snapshot), [2, 1, 0]);
+        assert_eq!(panel.indices(&snapshot), [2, 0, 1]);
+        assert_eq!(panel.rows(&snapshot)[1].section, Section::Current);
+        assert_eq!(snapshot.tasks, before);
+    }
+
+    #[test]
+    fn le_retard_prime_sans_date_ou_avec_une_planification_future() {
+        // RG-F2-08/10 — Étant donné deux deadlines dépassées et un samedi planifié.
+        let snapshot = snapshot(
+            "- [ ] Sans date @deadline(2026-10-08)\n- [ ] Future @planned(2026-10-20) @deadline(2026-10-08)\n- [ ] Samedi @planned(2026-10-10)\n",
+        );
+        let before = snapshot.tasks.clone();
+        // Quand le panneau est consulté vendredi.
+        let rows = PanelState::new(date(9)).rows(&snapshot);
+        // Alors le retard prime, samedi reste Plus tard, sans doublons ni réécriture.
+        assert_eq!(
+            rows.iter().map(|row| row.section).collect::<Vec<_>>(),
+            [Section::Overdue, Section::Overdue, Section::Later]
+        );
+        assert_eq!(
+            rows.iter().map(|row| row.index).collect::<Vec<_>>(),
+            [0, 1, 2]
+        );
         assert_eq!(snapshot.tasks, before);
     }
 

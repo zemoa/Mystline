@@ -208,6 +208,8 @@ struct Report {
     native_close_masks_settings: bool,
     capture_escape_masks_window: bool,
     functional_capture_confirmed: bool,
+    undated_tasks_current: bool,
+    rescheduling_and_unscheduling_confirmed: bool,
     invalid_capture_preserves_draft: bool,
     completion_and_history_persisted: bool,
     stale_ipc_rejected: bool,
@@ -385,6 +387,72 @@ async fn functional_ipc(app: &AppHandle, directory: &std::path::Path) -> Result<
     if before["rows"].as_array().is_none_or(|rows| rows.len() != 2) {
         return Err("La capture confirmée n'apparaît pas dans la projection IPC".into());
     }
+    if before["rows"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .any(|row| row["section"] != "current" || !row["planned"].is_null())
+    {
+        return Err("Une tâche sans date prévue ne rejoint pas En cours".into());
+    }
+    expect_dom(
+        app,
+        Surface::Panel,
+        "document.querySelectorAll('.task-section.current .task').length",
+        json!(2),
+    )
+    .await?;
+    // La vraie édition Vue doit déplacer une tâche vers le prochain jour ouvré,
+    // puis la remettre En cours lorsque la commande de planification est retirée.
+    let original_draft = before["rows"][0]["editDraft"]
+        .as_str()
+        .ok_or("Brouillon de la tâche absent")?;
+    for (draft, section) in [
+        (
+            format!(
+                "{original_draft} /p {}",
+                before["nextWorkday"].as_str().unwrap()
+            ),
+            "nextWorkday",
+        ),
+        (original_draft.to_owned(), "current"),
+    ] {
+        dom_state(
+            app,
+            Surface::Panel,
+            "document.querySelector('[data-position=\"0\"] .edit-action').click()",
+        )
+        .await?;
+        expect_dom(
+            app,
+            Surface::Panel,
+            "document.querySelector('#edit') !== null",
+            json!(true),
+        )
+        .await?;
+        let submit = format!(
+            "(() => {{ const input = document.querySelector('#edit'); input.value = {}; input.dispatchEvent(new Event('input', {{ bubbles: true }})); input.form.dispatchEvent(new Event('submit', {{ bubbles: true, cancelable: true }})); }})()",
+            json!(draft)
+        );
+        dom_state(app, Surface::Panel, &submit).await?;
+        expect_dom(
+            app,
+            Surface::Panel,
+            &format!(
+                "document.querySelectorAll('.task-section.{section} [data-position=\"0\"]').length"
+            ),
+            json!(1),
+        )
+        .await?;
+        expect_dom(
+            app,
+            Surface::Panel,
+            "document.querySelector('#edit') === null && document.querySelectorAll('[data-position=\"0\"]').length === 1",
+            json!(true),
+        )
+        .await?;
+    }
+    let before = dom_state(app, Surface::Panel, view_expression).await?;
     let previous_source = before["source"].clone();
     let toggle = format!(
         "window.__TAURI_INTERNALS__.invoke('task_toggle', {{ source: {}, position: 1, request: {{ query: '', tag: null, history: false }} }})",
@@ -402,6 +470,13 @@ async fn functional_ipc(app: &AppHandle, directory: &std::path::Path) -> Result<
     if !persisted.contains("- [x] Capture fonctionnelle #mission @completed(") {
         return Err("La réponse de complétion précède son écriture persistée".into());
     }
+    expect_dom(
+        app,
+        Surface::Panel,
+        "document.querySelector('.task-section.current h2 span')?.textContent",
+        json!("1 à faire · 1 terminée"),
+    )
+    .await?;
     let history = dom_state(app, Surface::Panel, "window.__TAURI_INTERNALS__.invoke('task_view', { request: { query: 'fonctionnelle', tag: 'MISSION', history: true } })").await?;
     if history["rows"]
         .as_array()
@@ -768,6 +843,8 @@ async fn run(app: &AppHandle, directory: &std::path::Path) -> Result<Report, Str
         native_close_masks_settings: mode == WindowMode::Hide,
         capture_escape_masks_window: mode == WindowMode::Hide,
         functional_capture_confirmed: true,
+        undated_tasks_current: true,
+        rescheduling_and_unscheduling_confirmed: true,
         invalid_capture_preserves_draft: true,
         completion_and_history_persisted: true,
         stale_ipc_rejected: true,

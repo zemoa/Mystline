@@ -76,9 +76,9 @@ pub fn project(
                 position: row.index,
                 section: match row.section {
                     Section::Overdue => "overdue",
-                    Section::Today => "today",
+                    Section::Current => "current",
                     Section::NextWorkday => "nextWorkday",
-                    Section::All => "all",
+                    Section::Later => "later",
                 },
                 title: task.title.clone(),
                 tags: task.tags.clone(),

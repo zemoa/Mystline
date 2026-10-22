@@ -80,14 +80,18 @@ Les concepts intrinsèques d'une tâche appartiennent au domaine.
 Les notions suivantes sont des projections de présentation :
 
 - En retard ;
-- Aujourd'hui ;
+- En cours ;
 - Prochain jour ouvré ;
-- Toutes les tâches ;
+- Plus tard ;
 - Historique ;
 - recherche ;
 - filtre par tag.
 
 Ces catégories ne sont jamais persistées.
+
+« En cours » regroupe les tâches sans date prévue et celles prévues aujourd'hui ou
+auparavant. Le retard de deadline prime sur ce regroupement. Les états du domaine restent
+« À faire » et « Terminée » ; le classement n'ajoute ni état ni date persistée.
 
 ---
 

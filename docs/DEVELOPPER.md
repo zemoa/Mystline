@@ -85,6 +85,10 @@ La sonde ouvre, masque et réutilise la capture et le panneau, puis vérifie que
 
 Le portage fonctionnel étend cette sonde avec la soumission DOM de captures valides et invalides, la confirmation d'écriture, les projections natives, la complétion, l'historique, les révisions obsolètes et les changements de source. Les commandes d'observation supplémentaires restent confinées au mode sonde debug. Les changements de configuration utilisent son répertoire temporaire et inhibent les modifications d'autostart et de raccourcis au niveau du système.
 
+La sonde vérifie aussi le regroupement **En cours** des tâches sans date prévue, le
+report au prochain jour ouvré puis le retrait de la date depuis le véritable formulaire
+Vue, l'absence de doublons et les compteurs séparant tâches à faire et terminées.
+
 Le comportement par défaut de la sonde est celui de D7 : masquage et réutilisation. Pour retrouver la référence historique de destruction, ajouter `--probe-destroy-windows` ; cette variante est confinée à la sonde debug avec `MYSTLINE_PROBE_DIR`. Les deux modes suivent le même parcours et attendent dix secondes après fermeture, avec une source temporaire vide dans un processus neuf. La sonde vérifie également le focus du champ de capture, l'effacement du brouillon à la fermeture et sa conservation lors d'une simple demande de focus. Le mode normal vérifie aussi la fermeture native des paramètres et le basculement du panneau. Les commandes d'observation du DOM sont réservées à la sonde et exclues du profil release.
 
 ## Lire et maintenir les tests F2

@@ -10,7 +10,7 @@ type Surface = "capture" | "panel"
 interface Source { generation: number; revision: number }
 interface UpdateStatus { sequence: number; phase: string; version: string | null; message: string }
 interface DesktopStatus { version: number; tasksFile: string; taskCount: number; revision: number; today: string; autostart: boolean; captureShortcut: string; panelShortcut: string; captureActive: boolean; panelActive: boolean; repositoryError: string | null }
-interface Row { position: number; section: string; title: string; tags: string[]; planned: string | null; deadline: string | null; deadlineTone: string | null; completed: boolean; completedDate: string | null; editDraft: string }
+interface Row { position: number; section: "overdue" | "current" | "nextWorkday" | "later"; title: string; tags: string[]; planned: string | null; deadline: string | null; deadlineTone: string | null; completed: boolean; completedDate: string | null; editDraft: string }
 interface TaskView { version: number; source: Source; today: string; nextWorkday: string; busy: boolean; rows: Row[] }
 interface Editor { position: number; source: Source; draft: string; invalidated: boolean }
 const params = new URLSearchParams(location.search)
@@ -53,17 +53,29 @@ let requests = 0
 let resizeObserver: ResizeObserver | null = null
 const request = () => ({ query: query.value, tag: tag.value, history: history.value })
 const sameSource = (left: Source, right: Source) => left.generation === right.generation && left.revision === right.revision
-const groups = computed(() => history.value ? [{ key: "history", label: "Tâches terminées", rows: view.value?.rows || [] }] : [
-  { key: "overdue", label: "En retard" }, { key: "today", label: "Aujourd’hui" },
-  { key: "nextWorkday", label: "Prochain jour ouvré · " + dateLabel(view.value?.nextWorkday || "") }, { key: "all", label: "Toutes les tâches" },
+const groups = computed(() => history.value ? [{ key: "history", label: "Tâches terminées", hint: "", rows: view.value?.rows || [] }] : [
+  { key: "overdue", label: "En retard", hint: "Deadline dépassée." },
+  { key: "current", label: "En cours", hint: "Sans date prévue · prévu aujourd’hui ou auparavant." },
+  { key: "nextWorkday", label: "Prochain jour ouvré · " + dateLabel(view.value?.nextWorkday || "", true), hint: "" },
+  { key: "later", label: "Plus tard", hint: "Autres dates prévues futures." },
 ].map(group => ({ ...group, rows: (view.value?.rows || []).filter(row => row.section === group.key) })))
 const panelDate = computed(() => {
   const today = view.value?.today || status.value?.today
   return today ? new Date(today + "T12:00:00").toLocaleDateString("fr-FR", { weekday: "long", day: "numeric", month: "long" }) : ""
 })
-function dateLabel(date: string) {
+function dateLabel(date: string, weekday = false) {
   if (!date) return ""
-  return new Date(date + "T12:00:00").toLocaleDateString("fr-FR", { day: "numeric", month: "short" })
+  return new Date(date + "T12:00:00").toLocaleDateString("fr-FR", { ...(weekday ? { weekday: "long" as const } : {}), day: "numeric", month: "short" })
+}
+function sectionCount(rows: Row[]) {
+  const completed = rows.filter(row => row.completed).length
+  const done = `${completed} terminée${completed > 1 ? "s" : ""}`
+  return history.value ? done : `${rows.length - completed} à faire${completed ? " · " + done : ""}`
+}
+function canReorder(row: Row, down: boolean) {
+  const rows = (view.value?.rows || []).filter(other => !other.completed && other.section === row.section)
+  const index = rows.findIndex(other => other.position === row.position)
+  return index >= 0 && (down ? index < rows.length - 1 : index > 0)
 }
 function acceptStatus(value: DesktopStatus) {
   if (!status.value || value.version >= status.value.version) status.value = value
@@ -142,6 +154,7 @@ async function beginAdd() {
 }
 async function beginEdit(row: Row) {
   if (row.completed || history.value || adding.value || pending.value || view.value?.busy || !view.value) return
+  selected.value = row.position
   editor.value = { position: row.position, source: { ...view.value.source }, draft: row.editDraft, invalidated: false }
   error.value = ""; help.value = false; searching.value = false
   await nextTick(); editorInput.value?.focus()
@@ -201,13 +214,15 @@ async function toggleTask(row: Row) {
 }
 async function reorder(down: boolean) {
   const submittedActivation = activation
-  if (!view.value || selected.value === null || history.value || pending.value || view.value.busy) return
+  if (!view.value || selected.value === null || history.value || pending.value || view.value.busy || editor.value || adding.value) return
+  const row = view.value.rows.find(row => row.position === selected.value)
+  if (!row || row.completed || !canReorder(row, down)) return
   pending.value = true; error.value = ""
   try {
     const target = await invoke<number | null>("task_reorder", { source: view.value.source, position: selected.value, down, request: request() })
     if (activation === submittedActivation && target !== null) selected.value = target
   } catch (cause) { if (activation === submittedActivation) error.value = String(cause) }
-  finally { if (activation === submittedActivation) { pending.value = false; await refresh(); scrollSelection() } }
+  finally { if (activation === submittedActivation) { pending.value = false; await refresh(); await focusList() } }
 }
 function keydown(event: KeyboardEvent) {
   if (event.isComposing) return
@@ -338,18 +353,24 @@ onUnmounted(() => { disposed = true; for (const stop of unlisteners) stop(); res
         </form>
         <div ref="list" class="task-list" tabindex="0" role="list" aria-label="Tâches">
           <section v-for="group in groups" :key="group.key" :class="['task-section', group.key]">
-            <h2>{{ group.label }}<span>{{ group.rows.length }}</span></h2>
+            <h2>{{ group.label }}<span>{{ sectionCount(group.rows) }}</span></h2>
+            <p v-if="group.hint" class="section-hint">{{ group.hint }}</p>
             <p v-if="!group.rows.length" class="empty">{{ query || tag ? "Aucun résultat" : history ? "Aucune tâche terminée" : "Aucune tâche" }}</p>
             <article v-for="row in group.rows" :key="row.position" role="listitem" :data-position="row.position" :class="['task', { selected: selected === row.position, completed: row.completed }]" @click="selected = row.position">
               <input v-if="!history" type="checkbox" :checked="row.completed" :disabled="pending || view?.busy || !!editor || adding" :aria-label="(row.completed ? 'Réouvrir : ' : 'Terminer : ') + row.title" @change="toggleTask(row)" />
               <Icon v-else name="check" />
               <div class="task-body">
                 <button v-if="!history && !row.completed" class="task-title" @click="beginEdit(row)">{{ row.title }}</button><span v-else class="task-title">{{ row.title }}</span>
-                <div v-if="row.tags.length || row.planned || row.deadline || history" class="task-details">
+                <div v-if="row.tags.length || row.planned || row.deadline || row.completed" class="task-details">
                   <button v-for="item in row.tags" :key="item" :class="['tag', tagClass(item)]" :aria-label="'Filtrer par #' + item" @click.stop="tag = item">#{{ item }}</button>
                   <span v-if="history" class='date'>Terminée {{ dateLabel(row.completedDate || '') }}</span>
-                  <span v-else-if="row.planned && row.section === 'all'" class='date'>Prévu {{ dateLabel(row.planned) }}</span>
-                  <span v-if="row.deadline" :class="['deadline', row.deadlineTone]">Échéance {{ dateLabel(row.deadline) }}</span>
+                  <span v-else-if="row.planned" class='date'>{{ row.planned === view?.today ? "Prévu aujourd’hui" : "Prévu le " + dateLabel(row.planned) }}</span>
+                  <span v-if="row.deadline" :class="['deadline', row.deadlineTone]">Échéance {{ !row.completed && row.deadline === view?.today ? "aujourd’hui" : dateLabel(row.deadline) }}</span>
+                  <span v-if="!history && row.completed" class="date">Terminée aujourd’hui</span>
+                </div>
+                <div v-if="!history && !row.completed && selected === row.position && !editor && !adding" class="row-actions">
+                  <button :disabled="pending || view?.busy || !canReorder(row, false)" :aria-label="'Monter : ' + row.title" @click.stop="reorder(false)">↑ Monter</button>
+                  <button :disabled="pending || view?.busy || !canReorder(row, true)" :aria-label="'Descendre : ' + row.title" @click.stop="reorder(true)">↓ Descendre</button>
                 </div>
               </div>
               <button v-if="!history && !row.completed" class="edit-action" :aria-label="'Modifier : ' + row.title" @click="beginEdit(row)"><Icon name="edit" /></button>

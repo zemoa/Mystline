@@ -64,7 +64,8 @@ p { line-height: 1.5; }
 h2 { font-size: 14px; font-weight: 650; margin: 0 0 10px; }
 .task-section h2 { display: flex; align-items: center; gap: 9px; font-size: 10.5px; line-height: 1.4; font-weight: 700; letter-spacing: .7px; text-transform: uppercase; padding-bottom: 6px; margin: 0 0 4px; border-bottom: 1px solid var(--border); }
 .task-section h2::before { content: ""; width: 3px; height: 13px; flex-shrink: 0; background: var(--primary); border-radius: 1px; }
-.task-section h2 span { margin-left: auto; color: var(--muted); font-size: 10px; font-weight: 400; letter-spacing: 0; }
+.task-section h2 span { margin-left: auto; color: var(--muted); font-size: 10px; font-weight: 400; letter-spacing: 0; text-transform: none; white-space: nowrap; }
+.section-hint { color: var(--muted); font-size: 10px; margin: 5px 0 7px 12px; }
 .overdue h2 { color: var(--danger); }
 .overdue h2::before { background: var(--danger); }
 .empty { color: var(--muted); font-size: 12px; margin: 12px 8px; }
@@ -75,6 +76,8 @@ h2 { font-size: 14px; font-weight: 650; margin: 0 0 10px; }
 button.task-title:hover { color: var(--primary); background: transparent; }
 .completed .task-title { text-decoration: line-through; color: var(--muted); }
 .task-details { display: flex; align-items: center; flex-wrap: wrap; gap: 5px; margin-top: 3px; }
+.row-actions { display: flex; gap: 6px; margin-top: 6px; }
+.row-actions button { padding: 2px 6px; font-size: 10px; border: 1px solid var(--border); background: var(--surface); }
 .tag { padding: 1px 7px; border-radius: 20px; font-size: 10px; line-height: 1.2; }
 .tag-0, .tag-1, .tag-2, .tag-3 { background: var(--soft); color: var(--primary); }
 .tag:hover { background: #dce0f4; }

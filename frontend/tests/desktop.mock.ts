@@ -44,7 +44,7 @@ export const status = {
 
 export function row(position: number, title: string, patch: Record<string, unknown> = {}) {
   return {
-    position, title, section: 'all', tags: ['mission'], planned: null, deadline: null,
+    position, title, section: 'current', tags: ['mission'], planned: null, deadline: null,
     deadlineTone: null, completed: false, completedDate: null, editDraft: `${title} #mission`,
     ...patch,
   }

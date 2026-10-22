@@ -2,6 +2,10 @@
 
 > Migration Tauri/Vue : ces règles restent la référence fonctionnelle. Le portage F0–F5 et sa validation sont suivis dans [la migration](migration-tauri-vue.md).
 
+> Refonte fonctionnelle validée le 22 octobre 2026 : les tâches sans date prévue sont
+> regroupées dans **En cours**, avec celles prévues aujourd'hui ou auparavant.
+> Les [maquettes validées](designs/refonte-fonctionnelle/README.md) illustrent les parcours.
+
 ## 1. Objectif du produit
 
 Créer une application de gestion de tâches personnelle, locale, rapide et minimaliste.
@@ -45,14 +49,16 @@ L’utilisateur n’est jamais obligé de renseigner :
 
 ---
 
-## 2.3 Pas de statut « En cours »
+## 2.3 « En cours » est un regroupement automatique
 
 Une tâche possède seulement deux états :
 
 **À faire**
 **Terminée**
 
-Le fait de vouloir travailler sur une tâche aujourd’hui est représenté par sa planification pour aujourd’hui et non par un statut spécifique.
+La section **En cours** rassemble automatiquement les tâches sans date prévue et celles
+prévues aujourd'hui ou auparavant, sauf si une deadline dépassée les place dans **En retard**.
+Aucun statut de démarrage n'est à renseigner. Une date prévue future reporte la tâche.
 
 ---
 
@@ -240,7 +246,7 @@ La tâche est créée.
 
 La fenêtre disparaît.
 
-La tâche apparaît ensuite dans **Toutes les tâches**.
+Une capture avec un titre seul apparaît ensuite dans **En cours**, sans date ajoutée automatiquement.
 
 Le panneau principal propose également une action d'ajout. Elle affiche une saisie intégrée qui
 accepte la même syntaxe et enregistre la tâche avec Entrée, sans imposer de passer par le raccourci
@@ -330,9 +336,13 @@ Une tâche en retard doit être difficile à ignorer.
 
 L’utilisateur peut ensuite modifier sa deadline s’il souhaite la reprioriser.
 
-## Aujourd'hui
+## En cours
 
-Contient les tâches planifiées pour aujourd’hui.
+Contient les tâches sans date prévue, celles prévues aujourd'hui et celles prévues dans
+le passé, sauf si une deadline dépassée les classe dans **En retard**. Une deadline future,
+seule, ne reporte pas le travail : la tâche reste en cours.
+
+La date prévue initiale reste visible et n'est pas réécrite au changement de jour.
 
 Une tâche peut être cochée directement depuis cette section.
 
@@ -346,18 +356,18 @@ si nous sommes vendredi, cette section affiche les tâches prévues lundi.
 
 Les jours fériés ne sont pas pris en compte.
 
-## Toutes les tâches
+Le jour de semaine et la date sont précisés dans l'en-tête.
 
-Contient toutes les tâches restantes.
+## Plus tard
 
-Cela comprend notamment :
+Contient les autres tâches avec une date prévue future. Le vendredi, une tâche prévue
+samedi y reste, alors que celle prévue lundi figure dans **Prochain jour ouvré**.
 
-* les tâches sans date ;
-* les tâches prévues après le prochain jour ouvré ;
-* les tâches de fond ;
-* les tâches avec une deadline future non imminente.
+La date prévue est indiquée discrètement sur chaque ligne.
 
-Une tâche planifiée dans plusieurs jours reste donc dans cette section avec une indication discrète de sa date.
+Chaque section distingue le nombre de tâches à faire et de tâches terminées aujourd'hui.
+Les sections vides restent identifiables ; une recherche sans correspondance indique
+« Aucun résultat ».
 
 ---
 
@@ -365,14 +375,15 @@ Une tâche planifiée dans plusieurs jours reste donc dans cette section avec un
 
 Une tâche ne doit jamais apparaître simultanément dans plusieurs sections principales.
 
-Par exemple, une tâche prévue aujourd’hui apparaît dans **Aujourd’hui** et n’apparaît pas également dans **Toutes les tâches**.
+Par exemple, une tâche sans date prévue avec une deadline dépassée apparaît uniquement
+dans **En retard**. Une tâche prévue aujourd'hui sans retard apparaît uniquement dans **En cours**.
 
 Ordre de classification :
 
-En retard
-Aujourd’hui
-Prochain jour ouvré
-Toutes les tâches
+1. En retard
+2. En cours
+3. Prochain jour ouvré
+4. Plus tard
 
 ---
 
@@ -410,9 +421,10 @@ Elle peut simplement recevoir des tags tels que :
 
 `#objectif-mission`
 
-Elle reste visible dans **Toutes les tâches**.
+Sans date prévue, elle reste visible dans **En cours**.
 
-Pour décider de travailler dessus aujourd’hui, l’utilisateur peut simplement la planifier pour aujourd’hui.
+L'utilisateur peut la travailler immédiatement ou la reporter en lui attribuant une date
+prévue future. Retirer cette date la remet dans **En cours**.
 
 Il n'est pas nécessaire de créer des sous-tâches.
 
@@ -441,7 +453,11 @@ Lorsqu'une tâche est terminée :
 Une tâche terminée encore visible dans le panneau quotidien peut être décochée. Elle redevient
 alors « À faire » et sa date de fin est retirée. L'historique reste une vue consultative.
 
-La complétion conserve le titre, la date prévue, la deadline et les tags de la tâche. Une tâche terminée ne figure plus dans **En retard** : le jour où elle est cochée, elle apparaît barrée dans **Aujourd'hui** ou **Prochain jour ouvré** si sa date prévue correspond, et sinon dans **Toutes les tâches**.
+La complétion conserve le titre, la date prévue, la deadline et les tags de la tâche. Une
+tâche terminée ne figure plus dans **En retard** : le jour où elle est cochée, elle apparaît
+barrée dans **En cours** si elle n'a pas de date prévue ou si cette date est aujourd'hui ou
+passée, dans **Prochain jour ouvré** si la date correspond, et sinon dans **Plus tard**.
+Sa deadline n'est plus signalée comme un retard.
 
 À partir du lendemain, elle disparaît de la vue principale.
 
@@ -480,6 +496,10 @@ déplace la tâche vers le haut.
 déplace la tâche vers le bas.
 
 Un glisser-déposer à la souris peut être proposé en complément.
+
+Les boutons « Monter » et « Descendre » de la tâche active sélectionnée permettent le
+même déplacement à la souris ; ils sont désactivés aux bornes de la section. Les tâches
+terminées et les lignes masquées par un filtre gardent leurs positions.
 
 ---
 

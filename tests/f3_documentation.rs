@@ -74,11 +74,12 @@ fn terminer_une_tache_conserve_ses_metadonnees_et_persiste_sa_date() {
 fn une_tache_terminee_aujourdhui_reste_dans_une_seule_section() {
     // RG-F3-03 — Étant donné un vendredi et toutes les possibilités de planification.
     for (planned, expected) in [
-        (" @planned(2026-10-09)", Section::Today),
+        (" @planned(2026-10-09)", Section::Current),
         (" @planned(2026-10-12)", Section::NextWorkday),
-        (" @planned(2026-10-20)", Section::All),
-        (" @planned(2026-10-08)", Section::All),
-        ("", Section::All),
+        (" @planned(2026-10-20)", Section::Later),
+        (" @planned(2026-10-10)", Section::Later),
+        (" @planned(2026-10-08)", Section::Current),
+        ("", Section::Current),
     ] {
         let mut f = Fixture::new(&format!("- [ ] Support{planned} @deadline(2026-10-08)\n"));
         // Quand la tâche en retard est terminée.
@@ -101,8 +102,8 @@ fn terminer_une_tache_en_retard_la_reclasse_sans_signaler_sa_deadline() {
     );
     // Quand elle est cochée.
     let snapshot = f.complete(0);
-    // Alors elle quitte En retard et reste terminée dans Toutes les tâches.
-    assert_eq!(f.panel.rows(&snapshot)[0].section, Section::All);
+    // Alors elle quitte En retard et reste terminée dans En cours.
+    assert_eq!(f.panel.rows(&snapshot)[0].section, Section::Current);
     assert_eq!(snapshot.tasks[0].deadline, Some(date(8)));
     assert_eq!(
         task_deadline_tone(&snapshot.tasks[0], date(9)),
@@ -365,7 +366,9 @@ fn lhistorique_se_consulte_sans_modifier_les_taches() {
 #[test]
 fn le_reordonnancement_des_taches_actives_ignore_les_terminees_du_jour() {
     // RG-F3-03 / F2 — Étant donné une terminée du jour entre deux tâches actives.
-    let mut f = Fixture::new("- [ ] A\n- [x] Accomplie @completed(2026-10-09)\n- [ ] B\n");
+    let mut f = Fixture::new(
+        "- [ ] A\n- [x] Accomplie @completed(2026-10-09)\n- [ ] B @planned(2026-10-09)\n",
+    );
     let before = f.repo.snapshot();
     // Quand A est déplacée vers sa prochaine voisine active.
     let to = f.panel.neighbor(&before, 0, true).unwrap();

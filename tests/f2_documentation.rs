@@ -49,8 +49,9 @@ fn un_titre_suffit_a_creer_une_tache() {
     // Quand l'utilisateur valide un simple titre.
     let input = parse_input("  Acheter  du pain  ", date(9)).unwrap();
     let snapshot = application::create_task_from_input(&mut fixture.repo, &input).unwrap();
-    // Alors la tâche active est dans Toutes les tâches et survit au redémarrage.
-    assert_eq!(fixture.panel.rows(&snapshot)[0].section, Section::All);
+    // Alors la tâche est En cours, sans date ajoutée, et survit au redémarrage.
+    assert_eq!(fixture.panel.rows(&snapshot)[0].section, Section::Current);
+    assert_eq!(snapshot.tasks[0].planned, None);
     assert_eq!(fixture.reopened().tasks, snapshot.tasks);
     assert_eq!(fixture.text(), "- [ ] Acheter  du pain\n");
 }
@@ -146,6 +147,40 @@ fn planifier_une_tache_de_fond_prepare_le_prochain_jour_ouvre() {
 }
 
 #[test]
+fn reporter_puis_retirer_la_date_replace_la_tache_en_cours() {
+    // RG-F2-05/08/10 — Étant donné une tâche sans date prévue avec deadline et tag.
+    let mut fixture = Fixture::new("");
+    let input = parse_input("Appeler le garage /d 2026-10-20 #perso", date(9)).unwrap();
+    let created = application::create_task_from_input(&mut fixture.repo, &input).unwrap();
+    assert_eq!(fixture.panel.rows(&created)[0].section, Section::Current);
+    assert_eq!(created.tasks[0].planned, None);
+    // Quand on la reporte à lundi, puis qu'on retire seulement sa date prévue.
+    for (draft, expected) in [
+        (
+            "Appeler le garage /p lundi /d 2026-10-20 #perso",
+            Section::NextWorkday,
+        ),
+        ("Appeler le garage /d 2026-10-20 #perso", Section::Current),
+    ] {
+        fixture.panel.begin_edit(&fixture.repo.snapshot(), 0);
+        fixture.panel.editor.as_mut().unwrap().draft = draft.into();
+        let saved = fixture.panel.save_edit(&mut fixture.repo, date(9)).unwrap();
+        // Alors elle apparaît une seule fois dans sa nouvelle section, avec ses autres données.
+        let reopened = fixture.reopened();
+        let rows = fixture.panel.rows(&reopened);
+        assert_eq!(rows.len(), 1);
+        assert_eq!(rows[0].section, expected);
+        assert_eq!(reopened.tasks, saved.tasks);
+        assert_eq!(reopened.tasks[0].deadline, Some(date(20)));
+        assert_eq!(reopened.tasks[0].tags, ["perso"]);
+    }
+    assert_eq!(
+        fixture.text(),
+        "- [ ] Appeler le garage #perso @deadline(2026-10-20)\n"
+    );
+}
+
+#[test]
 fn une_edition_invalide_conserve_la_saisie_et_la_tache_anterieure() {
     // RG-F2-04 — Étant donné une tâche existante et des saisies invalides.
     for draft in [
@@ -199,7 +234,7 @@ fn echap_annule_ledition_sans_ecrire() {
 fn le_reordonnancement_filtre_permute_les_positions_visibles() {
     // RG-F2-13 — Étant donné plusieurs lignes masquées entre A et B et une tâche d'une autre section.
     let mut fixture = Fixture::new(
-        "- [ ] A #visible\n- [ ] Masquée 1\n- [x] Terminée @completed(2026-10-01)\n- [ ] Masquée 2\n- [ ] B #visible\n- [ ] Jour #visible @planned(2026-10-09)\n",
+        "- [ ] A #visible\n- [ ] Masquée 1\n- [x] Terminée @completed(2026-10-01)\n- [ ] Masquée 2\n- [ ] B #visible\n- [ ] Lundi #visible @planned(2026-10-12)\n",
     );
     fixture.panel.tag = Some("visible".into());
     let before = fixture.repo.snapshot();
@@ -230,9 +265,9 @@ fn recherche_filtre_et_changement_de_jour_necrivent_pas() {
     // Quand on recherche, filtre puis passe au samedi.
     fixture.panel.query = "supp".into();
     fixture.panel.tag = Some("MISSION".into());
-    assert_eq!(fixture.panel.rows(&before)[0].section, Section::Today);
+    assert_eq!(fixture.panel.rows(&before)[0].section, Section::Current);
     fixture.panel.today = date(10);
-    assert_eq!(fixture.panel.rows(&before)[0].section, Section::All);
+    assert_eq!(fixture.panel.rows(&before)[0].section, Section::Current);
     fixture.panel.query.clear();
     assert_eq!(fixture.panel.rows(&before)[0].section, Section::Overdue);
     // Alors les tâches et le fichier demeurent inchangés.
