@@ -41,19 +41,75 @@ impl Shortcuts {
     }
 
     pub fn changed(&self, capture: bool, value: &str) -> Result<Self, String> {
-        parse_shortcut(value)?;
+        self.changed_with(capture, value, |value| {
+            parse_shortcut(value).map(|key| key.to_string())
+        })
+    }
+
+    pub fn changed_for_portal(&self, capture: bool, value: &str) -> Result<Self, String> {
+        self.changed_with(capture, value, portal_shortcut)
+    }
+
+    fn changed_with(
+        &self,
+        capture: bool,
+        value: &str,
+        normalize: impl Fn(&str) -> Result<String, String>,
+    ) -> Result<Self, String> {
+        let requested = normalize(value)?;
         let mut updated = self.clone();
         if capture {
             updated.capture = value.trim().into();
         } else {
             updated.panel = value.trim().into();
         }
-        if updated.distinct() {
+        let other = if capture { &self.panel } else { &self.capture };
+        if normalize(other).ok().as_ref() != Some(&requested) {
             Ok(updated)
         } else {
             Err("Les deux actions doivent utiliser des raccourcis différents.".into())
         }
     }
+}
+
+/// Convert a configured shortcut to the XDG shortcuts specification.
+/// Symbols denote keysyms, never positions inferred from an AZERTY/QWERTY layout.
+pub fn portal_shortcut(value: &str) -> Result<String, String> {
+    use global_hotkey::hotkey::Modifiers;
+
+    let combination = value.rsplit_once('+');
+    let key = combination.map_or(value, |(_, key)| key);
+    let symbol = match key.trim() {
+        "!" | "exclam" => Some("exclam"),
+        "ù" | "ugrave" => Some("ugrave"),
+        _ => None,
+    };
+    // Reuse the native parser to validate the modifier list, including ordering.
+    let hotkey = if symbol.is_some() {
+        parse_shortcut(
+            &combination.map_or_else(|| "A".to_owned(), |(prefix, _)| format!("{prefix}+A")),
+        )?
+    } else {
+        parse_shortcut(value)?
+    };
+    let mut parts = Vec::new();
+    for (modifier, name) in [
+        (Modifiers::CONTROL, "CTRL"),
+        (Modifiers::SHIFT, "SHIFT"),
+        (Modifiers::ALT, "ALT"),
+        (Modifiers::SUPER, "LOGO"),
+    ] {
+        if hotkey.mods.contains(modifier) {
+            parts.push(name.to_owned());
+        }
+    }
+    let key = hotkey.key.to_string();
+    parts.push(
+        symbol
+            .map(str::to_owned)
+            .unwrap_or_else(|| key.strip_prefix("Key").unwrap_or(&key).to_ascii_lowercase()),
+    );
+    Ok(parts.join("+"))
 }
 
 pub fn parse_shortcut(value: &str) -> Result<global_hotkey::hotkey::HotKey, String> {
@@ -119,6 +175,54 @@ pub fn save(dir: &Path, config: &Config) -> Result<(), ConfigError> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn portal_accepts_and_persists_french_symbol_shortcuts() {
+        let dir = tempfile::tempdir().unwrap();
+        let mut config = load_or_create(dir.path()).unwrap();
+        config.shortcuts = config
+            .shortcuts
+            .changed_for_portal(true, "Ctrl + !")
+            .unwrap();
+        config.shortcuts = config
+            .shortcuts
+            .changed_for_portal(false, "Ctrl + ù")
+            .unwrap();
+        save(dir.path(), &config).unwrap();
+        let reopened = load_or_create(dir.path()).unwrap();
+        assert_eq!(reopened.shortcuts.capture, "Ctrl + !");
+        assert_eq!(reopened.shortcuts.panel, "Ctrl + ù");
+        assert_eq!(
+            portal_shortcut(&reopened.shortcuts.capture).unwrap(),
+            "CTRL+exclam"
+        );
+        assert_eq!(
+            portal_shortcut(&reopened.shortcuts.panel).unwrap(),
+            "CTRL+ugrave"
+        );
+        assert!(
+            reopened
+                .shortcuts
+                .changed_for_portal(false, "Control+exclam")
+                .is_err()
+        );
+        assert!(
+            reopened
+                .shortcuts
+                .changed_for_portal(true, "Control+ugrave")
+                .is_err()
+        );
+        for invalid in [
+            "Ctrl++!",
+            "+!",
+            "Ctrl+A+ù",
+            "Ctrl+ù+Shift",
+            "Ctrl+",
+            "Ctrl+unknown",
+        ] {
+            assert!(portal_shortcut(invalid).is_err(), "{invalid}");
+        }
+    }
+
     #[test]
     fn create_and_persist_config() {
         let dir = tempfile::tempdir().unwrap();

@@ -268,24 +268,7 @@ pub async fn portal_shortcuts(
 
 #[cfg(target_os = "linux")]
 fn portal_trigger(value: &str) -> Result<String, String> {
-    use global_hotkey::hotkey::Modifiers;
-    let hotkey = config::parse_shortcut(value)?;
-    let mut parts = Vec::new();
-    if hotkey.mods.contains(Modifiers::CONTROL) {
-        parts.push("CTRL".to_owned());
-    }
-    if hotkey.mods.contains(Modifiers::SHIFT) {
-        parts.push("SHIFT".to_owned());
-    }
-    if hotkey.mods.contains(Modifiers::ALT) {
-        parts.push("ALT".to_owned());
-    }
-    if hotkey.mods.contains(Modifiers::SUPER) {
-        parts.push("SUPER".to_owned());
-    }
-    let key = hotkey.key.to_string();
-    parts.push(key.strip_prefix("Key").unwrap_or(&key).to_ascii_lowercase());
-    Ok(parts.join("+"))
+    config::portal_shortcut(value)
 }
 
 #[cfg(test)]
@@ -345,6 +328,14 @@ mod tests {
             "CTRL+SHIFT+space"
         );
         assert_eq!(portal_trigger("Alt+T").unwrap(), "ALT+t");
+        let shortcuts = config::Shortcuts {
+            capture: "Ctrl + !".into(),
+            panel: "Ctrl + ù".into(),
+        };
+        let bindings = portal_bindings(&shortcuts, [1, 2]).unwrap();
+        assert_eq!(bindings[0].trigger, "CTRL+exclam");
+        assert_eq!(bindings[1].trigger, "CTRL+ugrave");
+        assert_ne!(bindings[0].id, bindings[1].id);
     }
 
     #[test]

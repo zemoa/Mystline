@@ -612,7 +612,11 @@ pub fn settings_shortcut(app: AppHandle, capture: bool, value: String) -> Result
     let state = app.state::<Mutex<Resident>>();
     let mut state = state.lock().map_err(|error| error.to_string())?;
     let mut updated = state.config.clone();
-    updated.shortcuts = updated.shortcuts.changed(capture, &value)?;
+    updated.shortcuts = if wayland() {
+        updated.shortcuts.changed_for_portal(capture, &value)?
+    } else {
+        updated.shortcuts.changed(capture, &value)?
+    };
     config::save(&state.directory, &updated).map_err(|error| error.to_string())?;
     let previous = if capture {
         state.config.shortcuts.capture.clone()

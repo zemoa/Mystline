@@ -967,6 +967,13 @@ Deux raccourcis globaux sont configurables :
 
 Leurs combinaisons par défaut sont `Ctrl+Shift+Espace` et `Ctrl+Shift+T`.
 
+Sous Wayland, `Ctrl+!` et `Ctrl+ù` sont acceptés : la validation et l'enregistrement
+utilisent les keysyms XKB `exclam` et `ugrave`, sans déduire de position physique
+sur le clavier. Les noms `exclam` et `ugrave` sont également acceptés et traités
+comme équivalents pour refuser une attribution identique aux deux actions.
+La configuration conserve la saisie utilisateur. X11 et Windows conservent la
+syntaxe du parseur natif `global-hotkey`.
+
 Sur Linux Wayland, l'enregistrement passe par le portail XDG Global Shortcuts : le compositeur peut demander une autorisation, refuser un raccourci ou proposer une combinaison différente. L'état actif reflète les raccourcis effectivement accordés. Sur X11 et Windows, l'enregistrement utilise le plugin Tauri `global-shortcut`. Sous Wayland, l'adaptateur `ashpd` existant est conservé. Le tray reste l'accès de repli si le portail ou l'un des raccourcis est indisponible.
 
 L'adaptateur Wayland déclare l'identifiant applicatif `local.mystline`, dérivé de l'identifiant Tauri en retirant son suffixe `.desktop` réservé aux lanceurs dans KGlobalAccel, auprès du registre du portail, sur une connexion D-Bus dédiée, avant toute création de session. Hors sandbox applicatif, il crée si nécessaire une entrée `.desktop` locale avec `NoDisplay=true` dans le dossier XDG des applications : le portail exige cette métadonnée pour identifier les lancements depuis les sources. Une entrée existante est conservée. Les deux actions sont liées ensemble dans une seule session ; sa fermeture précède tout renouvellement. Une modification invalide les événements de l'ancienne session pour les deux actions. Les identifiants d'actions incluent la combinaison normalisée afin qu'une nouvelle combinaison fasse l'objet d'une nouvelle demande, plutôt que de restaurer une ancienne attribution du compositeur. Une action présente dans la réponse mais sans `trigger_description` reste inactive.
