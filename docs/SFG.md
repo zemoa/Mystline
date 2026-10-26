@@ -327,6 +327,10 @@ L’aide doit pouvoir être ouverte et fermée sans utiliser la souris.
 
 Le raccourci d’affichage ouvre un panneau léger.
 
+Une barre dédiée au-dessus de l'en-tête permet de déplacer la fenêtre principale en
+maintenant le bouton principal de la souris et en faisant glisser. Elle reste disponible
+dans l'historique et les paramètres affichés dans cette même fenêtre.
+
 Le panneau présente les tâches en quatre zones principales, dans cet ordre :
 
 ## En retard

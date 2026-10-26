@@ -2,6 +2,7 @@
 import { computed, nextTick, onMounted, onUnmounted, ref, watch } from "vue"
 import { invoke } from "@tauri-apps/api/core"
 import { listen, type UnlistenFn } from "@tauri-apps/api/event"
+import { getCurrentWindow } from "@tauri-apps/api/window"
 import Icon from "./Icon.vue"
 import SyntaxHelp from "./SyntaxHelp.vue"
 import { version as appVersion } from "../../src-tauri/tauri.conf.json"
@@ -142,6 +143,11 @@ function open(target: Surface | "settings") {
 // après l'enregistrement d'une capture), qui ne doivent jamais fermer une
 // surface rouverte entre-temps.
 function closeCurrentSurface() { void run("close_current_surface") }
+async function dragPanel(event: MouseEvent) {
+  if (event.button !== 0 || event.detail > 1) return
+  try { await getCurrentWindow().startDragging() }
+  catch (cause) { error.value = String(cause) }
+}
 function closeAfterCapture() { void run("close_surface", { session, activation }) }
 async function focusList() { await nextTick(); list.value?.focus(); scrollSelection() }
 function scrollSelection() {
@@ -321,6 +327,7 @@ onUnmounted(() => { disposed = true; for (const stop of unlisteners) stop(); res
     </div>
 
     <template v-else>
+      <div class="window-drag-bar" title="Déplacer la fenêtre" @mousedown.prevent="dragPanel"><span /></div>
       <header>
         <div class="brand"><img class="brand-mark" src="/mystline-mark.svg" alt="" aria-hidden="true" /><span>Mystline</span></div>
         <nav aria-label="Actions">

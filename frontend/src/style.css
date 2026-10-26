@@ -27,6 +27,9 @@ button:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
 svg { width: 20px; height: 20px; flex-shrink: 0; fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
 .surface { padding: 24px; height: 100vh; overflow: auto; background: var(--surface); }
 .panel { display: flex; flex-direction: column; }
+.window-drag-bar { display: flex; align-items: center; justify-content: center; height: 24px; margin: -24px -24px 16px; flex-shrink: 0; background: var(--soft); border-bottom: 1px solid var(--border); cursor: grab; user-select: none; }
+.window-drag-bar:active { cursor: grabbing; }
+.window-drag-bar span { width: 36px; height: 3px; border-radius: 2px; background: var(--muted); pointer-events: none; }
 .capture { padding: 16px; }
 .capture-top { display: flex; justify-content: space-between; align-items: center; height: 22px; margin-bottom: 10px; }
 .capture-top button { display: flex; padding: 0; }

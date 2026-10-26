@@ -19,6 +19,10 @@ L'éditeur reste fondé sur la syntaxe explicite `/p`, `/d` et `#tag`. Les trois
 
 ## Palette Brume Indigo
 
+Le panneau comporte une barre de déplacement dédiée au-dessus de l'en-tête Mystline,
+avec une poignée discrète. Un glissement avec le bouton principal déplace la fenêtre,
+y compris dans l'historique et les paramètres. Aucun stockage de position n'est ajouté.
+
 | Usage | Couleur |
 | --- | --- |
 | Fond des surfaces | `#F5F7FB` |
