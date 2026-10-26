@@ -1,4 +1,8 @@
-# Refonte fonctionnelle — maquettes validées
+# Refonte fonctionnelle — maquettes historiques du 22 octobre 2026
+
+> Les regroupements de ces maquettes ont été remplacés le 26 octobre par la
+> [liste sans sections, variante A](../liste-sans-sections/README.md).
+> Ce document et son prototype sont conservés comme historique, pas comme règles actuelles.
 
 Maquettes validées par l'utilisateur le 22 octobre 2026, avant l'implémentation.
 Elles servent de référence aux regroupements et parcours décrits dans la SFG.

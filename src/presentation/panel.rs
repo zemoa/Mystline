@@ -4,49 +4,43 @@ use crate::{
     domain::{Task, same_tag},
     repository::{Snapshot, TaskRepository},
 };
-use chrono::{DateTime, Datelike, Days, NaiveDate, TimeZone};
+use chrono::{DateTime, NaiveDate, TimeZone};
 use std::time::Duration;
 
+/// Rang de tri du quotidien ; aucun regroupement visuel n'est créé.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum Section {
+pub enum SortRank {
     Overdue,
-    Current,
-    NextWorkday,
+    Today,
+    Tomorrow,
+    Undated,
     Later,
 }
 
-impl Section {
-    pub const ALL: [Self; 4] = [Self::Overdue, Self::Current, Self::NextWorkday, Self::Later];
-    pub fn label(self) -> &'static str {
-        match self {
-            Self::Overdue => "En retard",
-            Self::Current => "En cours",
-            Self::NextWorkday => "Prochain jour ouvré",
-            Self::Later => "Plus tard",
-        }
-    }
+impl SortRank {
+    pub const ALL: [Self; 5] = [
+        Self::Overdue,
+        Self::Today,
+        Self::Tomorrow,
+        Self::Undated,
+        Self::Later,
+    ];
 }
 
-pub fn next_workday(today: NaiveDate) -> NaiveDate {
-    let days = match today.weekday().num_days_from_monday() {
-        4 => 3,
-        5 => 2,
-        _ => 1,
-    };
-    today
-        .checked_add_days(Days::new(days))
-        .expect("date locale représentable")
-}
-
-pub fn section(task: &Task, today: NaiveDate) -> Section {
+pub fn sort_rank(task: &Task, today: NaiveDate) -> SortRank {
     if !task.completed && task.deadline.is_some_and(|date| date < today) {
-        Section::Overdue
-    } else if task.planned.is_none_or(|date| date <= today) {
-        Section::Current
-    } else if task.planned == Some(next_workday(today)) {
-        Section::NextWorkday
+        SortRank::Overdue
+    } else if task.planned.is_some_and(|date| date <= today) {
+        SortRank::Today
+    } else if task
+        .planned
+        .is_some_and(|date| Some(date) == today.succ_opt())
+    {
+        SortRank::Tomorrow
+    } else if task.planned.is_none() {
+        SortRank::Undated
     } else {
-        Section::Later
+        SortRank::Later
     }
 }
 
@@ -54,6 +48,7 @@ pub fn section(task: &Task, today: NaiveDate) -> Section {
 pub enum DeadlineTone {
     Overdue,
     Today,
+    Tomorrow,
     Future,
 }
 
@@ -62,6 +57,8 @@ pub fn deadline_tone(date: NaiveDate, today: NaiveDate) -> DeadlineTone {
         DeadlineTone::Overdue
     } else if date == today {
         DeadlineTone::Today
+    } else if Some(date) == today.succ_opt() {
+        DeadlineTone::Tomorrow
     } else {
         DeadlineTone::Future
     }
@@ -80,7 +77,7 @@ pub fn task_deadline_tone(task: &Task, today: NaiveDate) -> Option<DeadlineTone>
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Row {
     pub index: usize,
-    pub section: Section,
+    pub rank: SortRank,
 }
 
 #[derive(Clone)]
@@ -131,7 +128,7 @@ impl PanelState {
                 .filter(|(_, task)| task.completed && self.matches_filters(task))
                 .map(|(index, _)| Row {
                     index,
-                    section: Section::Later,
+                    rank: SortRank::Later,
                 })
                 .collect();
             rows.sort_by_key(|row| {
@@ -140,7 +137,7 @@ impl PanelState {
             return rows;
         }
         let mut rows = Vec::new();
-        for group in Section::ALL {
+        for group in SortRank::ALL {
             rows.extend(
                 snapshot
                     .tasks
@@ -148,12 +145,9 @@ impl PanelState {
                     .enumerate()
                     .filter_map(|(index, task)| {
                         ((!task.completed || task.effective_completion_date() == Some(self.today))
-                            && section(task, self.today) == group
+                            && sort_rank(task, self.today) == group
                             && self.matches_filters(task))
-                        .then_some(Row {
-                            index,
-                            section: group,
-                        })
+                        .then_some(Row { index, rank: group })
                     }),
             );
         }
@@ -270,7 +264,7 @@ impl PanelState {
         }
     }
 
-    /// Renvoie le voisin visible de la même section ; aux bornes, aucune action.
+    /// Renvoie le voisin visible de même rang de tri ; aux bornes, aucune action.
     pub fn neighbor(&self, snapshot: &Snapshot, selected: usize, down: bool) -> Option<usize> {
         if self.mode == PanelMode::History {
             return None;
@@ -287,7 +281,7 @@ impl PanelState {
             at.checked_sub(1)?
         };
         rows.get(target)
-            .filter(|row| row.section == rows[at].section)
+            .filter(|row| row.rank == rows[at].rank)
             .map(|row| row.index)
     }
 
@@ -345,52 +339,32 @@ mod tests {
     }
 
     #[test]
-    fn les_sections_sont_exclusives_et_ordonnees() {
-        // RG-F2-08/09 — Étant donné un vendredi et un fichier volontairement désordonné.
+    fn le_tri_est_stable_sans_doublons_et_demain_inclut_le_weekend() {
+        // RG-F2-08/09 — Étant donné vendredi, tous les rangs et deux dates futures désordonnées.
         let snapshot = snapshot(
-            "- [ ] Sans date\n- [ ] Lundi @planned(2026-10-12)\n- [ ] Hier @planned(2026-10-08)\n- [ ] Aujourd'hui @planned(2026-10-09)\n- [ ] En retard @planned(2026-10-09) @deadline(2026-10-08)\n- [ ] Plus tard @planned(2026-10-20)\n- [x] Terminée @deadline(2026-10-01) @completed(2026-10-01)\n",
+            "- [ ] Sans date\n- [ ] Lundi @planned(2026-10-12)\n- [ ] Hier @planned(2026-10-08)\n- [ ] Aujourd'hui @planned(2026-10-09)\n- [ ] En retard @planned(2026-10-20) @deadline(2026-10-08)\n- [ ] Samedi @planned(2026-10-10)\n- [ ] Autre sans date\n- [ ] Plus tard @planned(2026-10-20)\n- [x] Ancienne @completed(2026-10-01)\n",
         );
-        // Quand le panneau calcule ses lignes.
+        let before = snapshot.tasks.clone();
+        // Quand les lignes sont projetées, alors le rang prime et l'ordre fichier départage les égalités.
         let rows = PanelState::new(date(9)).rows(&snapshot);
-        // Alors le retard prime, les anciennes planifications restent visibles et aucun doublon n'existe.
         assert_eq!(
-            rows,
+            rows.iter().map(|r| r.index).collect::<Vec<_>>(),
+            [4, 2, 3, 5, 0, 6, 1, 7]
+        );
+        assert_eq!(
+            rows.iter().map(|r| r.rank).collect::<Vec<_>>(),
             [
-                Row {
-                    index: 4,
-                    section: Section::Overdue
-                },
-                Row {
-                    index: 0,
-                    section: Section::Current
-                },
-                Row {
-                    index: 2,
-                    section: Section::Current
-                },
-                Row {
-                    index: 3,
-                    section: Section::Current
-                },
-                Row {
-                    index: 1,
-                    section: Section::NextWorkday
-                },
-                Row {
-                    index: 5,
-                    section: Section::Later
-                }
+                SortRank::Overdue,
+                SortRank::Today,
+                SortRank::Today,
+                SortRank::Tomorrow,
+                SortRank::Undated,
+                SortRank::Undated,
+                SortRank::Later,
+                SortRank::Later,
             ]
         );
-    }
-
-    #[test]
-    fn le_prochain_jour_ouvre_ignore_le_weekend() {
-        // RG-F2-09 — Étant donné chacun des jours d'une semaine.
-        for (today, next) in [(5, 6), (6, 7), (7, 8), (8, 9), (9, 12), (10, 12), (11, 12)] {
-            // Quand on calcule le prochain jour ouvré, alors il est strictement futur et lundi-vendredi.
-            assert_eq!(next_workday(date(today)), date(next));
-        }
+        assert_eq!(snapshot.tasks, before);
     }
 
     #[test]
@@ -398,21 +372,22 @@ mod tests {
         // RG-F2-10 — Étant donné des deadlines aujourd'hui et éloignées, sans planification.
         let snapshot =
             snapshot("- [ ] Urgente @deadline(2026-10-09)\n- [ ] Éloignée @deadline(2026-10-25)\n");
-        // Quand le panneau les présente, alors elles restent En cours, sans date ajoutée.
+        // Quand le panneau les présente, alors elles restent sans date prévue, sans date ajoutée.
         assert!(
             PanelState::new(date(9))
                 .rows(&snapshot)
                 .iter()
-                .all(|row| row.section == Section::Current)
+                .all(|row| row.rank == SortRank::Undated)
         );
         assert!(snapshot.tasks.iter().all(|task| task.planned.is_none()));
         assert_eq!(deadline_tone(date(9), date(9)), DeadlineTone::Today);
+        assert_eq!(deadline_tone(date(10), date(9)), DeadlineTone::Tomorrow);
         assert_eq!(deadline_tone(date(25), date(9)), DeadlineTone::Future);
         assert_eq!(deadline_tone(date(8), date(9)), DeadlineTone::Overdue);
     }
 
     #[test]
-    fn recherche_et_filtre_par_tag_se_croisent_sans_changer_les_sections() {
+    fn recherche_et_filtre_par_tag_se_croisent_sans_changer_les_rangs() {
         // RG-F2-11/12 — Étant donné des titres et tags de casses différentes.
         let snapshot = snapshot(
             "- [ ] Préparer SUPPORT #Mission @planned(2026-10-09)\n- [ ] support technique #tech\n- [ ] Relire #SUPPORT #mission @planned(2026-10-12)\n",
@@ -424,7 +399,7 @@ mod tests {
         assert_eq!(panel.indices(&snapshot), [0, 1, 2]);
         panel.tag = Some("MISSION".into());
         assert_eq!(panel.indices(&snapshot), [0, 2]);
-        assert_eq!(panel.rows(&snapshot)[1].section, Section::NextWorkday);
+        assert_eq!(panel.rows(&snapshot)[1].rank, SortRank::Later);
         // Alors retirer le filtre restaure la recherche, et aucune tâche n'est modifiée.
         panel.tag = None;
         assert_eq!(panel.indices(&snapshot), [0, 1, 2]);
@@ -434,14 +409,14 @@ mod tests {
     }
 
     #[test]
-    fn le_reordonnancement_respecte_les_sections_et_les_bornes() {
-        // RG-F2-13 — Étant donné deux tâches visibles séparées par une ligne masquée et une autre section.
+    fn le_reordonnancement_respecte_les_rangs_et_les_bornes() {
+        // RG-F2-13 — Étant donné deux tâches visibles séparées par une ligne masquée et un autre rang.
         let snapshot = snapshot(
             "- [ ] A #visible\n- [ ] Masquée\n- [ ] B #visible\n- [ ] Lundi #visible @planned(2026-10-12)\n",
         );
         let mut panel = PanelState::new(date(9));
         panel.tag = Some("visible".into());
-        // Quand on demande les voisins, alors seules les lignes visibles de la même section sont proposées.
+        // Quand on demande les voisins, alors seules les lignes visibles de même rang de tri sont proposées.
         assert_eq!(panel.neighbor(&snapshot, 2, false), Some(0));
         assert_eq!(panel.neighbor(&snapshot, 0, true), Some(2));
         assert_eq!(panel.neighbor(&snapshot, 0, false), None);
@@ -458,10 +433,10 @@ mod tests {
         let before = snapshot.tasks.clone();
         let mut panel = PanelState::new(date(9));
         assert_eq!(panel.indices(&snapshot), [0, 2, 1]);
-        // Quand la date passe à samedi, alors les sections changent sans report automatique.
+        // Quand la date passe à samedi, alors les rangs changent sans report automatique.
         panel.today = date(10);
         assert_eq!(panel.indices(&snapshot), [2, 0, 1]);
-        assert_eq!(panel.rows(&snapshot)[1].section, Section::Current);
+        assert_eq!(panel.rows(&snapshot)[1].rank, SortRank::Today);
         assert_eq!(snapshot.tasks, before);
     }
 
@@ -474,10 +449,10 @@ mod tests {
         let before = snapshot.tasks.clone();
         // Quand le panneau est consulté vendredi.
         let rows = PanelState::new(date(9)).rows(&snapshot);
-        // Alors le retard prime, samedi reste Plus tard, sans doublons ni réécriture.
+        // Alors le retard prime, samedi devient demain, sans doublons ni réécriture.
         assert_eq!(
-            rows.iter().map(|row| row.section).collect::<Vec<_>>(),
-            [Section::Overdue, Section::Overdue, Section::Later]
+            rows.iter().map(|row| row.rank).collect::<Vec<_>>(),
+            [SortRank::Overdue, SortRank::Overdue, SortRank::Tomorrow]
         );
         assert_eq!(
             rows.iter().map(|row| row.index).collect::<Vec<_>>(),

@@ -45,7 +45,7 @@ export const status = {
 
 export function row(position: number, title: string, patch: Record<string, unknown> = {}) {
   return {
-    position, title, section: 'current', tags: ['mission'], planned: null, deadline: null,
+    position, title, rank: 'undated', tags: ['mission'], planned: null, deadline: null,
     deadlineTone: null, completed: false, completedDate: null, editDraft: `${title} #mission`,
     ...patch,
   }
@@ -54,7 +54,7 @@ export function row(position: number, title: string, patch: Record<string, unkno
 export function taskView(patch: Record<string, unknown> = {}) {
   return {
     version: 21, source: { generation: 2, revision: 7 }, today: '2026-10-09',
-    nextWorkday: '2026-10-12', busy: false, rows: [row(0, 'Première'), row(1, 'Seconde')],
+    busy: false, rows: [row(0, 'Première'), row(1, 'Seconde')],
     ...patch,
   }
 }

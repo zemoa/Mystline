@@ -208,7 +208,7 @@ struct Report {
     native_close_masks_settings: bool,
     capture_escape_masks_window: bool,
     functional_capture_confirmed: bool,
-    undated_tasks_current: bool,
+    undated_tasks_sorted: bool,
     rescheduling_and_unscheduling_confirmed: bool,
     invalid_capture_preserves_draft: bool,
     completion_and_history_persisted: bool,
@@ -391,31 +391,25 @@ async fn functional_ipc(app: &AppHandle, directory: &std::path::Path) -> Result<
         .as_array()
         .unwrap()
         .iter()
-        .any(|row| row["section"] != "current" || !row["planned"].is_null())
+        .any(|row| row["rank"] != "undated" || !row["planned"].is_null())
     {
-        return Err("Une tâche sans date prévue ne rejoint pas En cours".into());
+        return Err("Une tâche sans date prévue n'est pas classée sans date".into());
     }
     expect_dom(
         app,
         Surface::Panel,
-        "document.querySelectorAll('.task-section.current .task').length",
+        "document.querySelectorAll('.task[data-rank=undated]').length",
         json!(2),
     )
     .await?;
-    // La vraie édition Vue doit déplacer une tâche vers le prochain jour ouvré,
-    // puis la remettre En cours lorsque la commande de planification est retirée.
+    // La vraie édition Vue doit déplacer une tâche vers demain,
+    // puis la remettre sans date lorsque la commande de planification est retirée.
     let original_draft = before["rows"][0]["editDraft"]
         .as_str()
         .ok_or("Brouillon de la tâche absent")?;
-    for (draft, section) in [
-        (
-            format!(
-                "{original_draft} /p {}",
-                before["nextWorkday"].as_str().unwrap()
-            ),
-            "nextWorkday",
-        ),
-        (original_draft.to_owned(), "current"),
+    for (draft, rank) in [
+        (format!("{original_draft} /p demain"), "tomorrow"),
+        (original_draft.to_owned(), "undated"),
     ] {
         dom_state(
             app,
@@ -439,7 +433,7 @@ async fn functional_ipc(app: &AppHandle, directory: &std::path::Path) -> Result<
             app,
             Surface::Panel,
             &format!(
-                "document.querySelectorAll('.task-section.{section} [data-position=\"0\"]').length"
+                "document.querySelectorAll('.task[data-rank={rank}][data-position=\"0\"]').length"
             ),
             json!(1),
         )
@@ -473,7 +467,7 @@ async fn functional_ipc(app: &AppHandle, directory: &std::path::Path) -> Result<
     expect_dom(
         app,
         Surface::Panel,
-        "document.querySelector('.task-section.current h2 span')?.textContent",
+        "document.querySelector('.task-count')?.textContent",
         json!("1 à faire · 1 terminée"),
     )
     .await?;
@@ -843,7 +837,7 @@ async fn run(app: &AppHandle, directory: &std::path::Path) -> Result<Report, Str
         native_close_masks_settings: mode == WindowMode::Hide,
         capture_escape_masks_window: mode == WindowMode::Hide,
         functional_capture_confirmed: true,
-        undated_tasks_current: true,
+        undated_tasks_sorted: true,
         rescheduling_and_unscheduling_confirmed: true,
         invalid_capture_preserves_draft: true,
         completion_and_history_persisted: true,

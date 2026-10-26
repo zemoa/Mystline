@@ -85,15 +85,15 @@ La sonde ouvre, masque et réutilise la capture et le panneau, puis vérifie que
 
 Le portage fonctionnel étend cette sonde avec la soumission DOM de captures valides et invalides, la confirmation d'écriture, les projections natives, la complétion, l'historique, les révisions obsolètes et les changements de source. Les commandes d'observation supplémentaires restent confinées au mode sonde debug. Les changements de configuration utilisent son répertoire temporaire et inhibent les modifications d'autostart et de raccourcis au niveau du système.
 
-La sonde vérifie aussi le regroupement **En cours** des tâches sans date prévue, le
-report au prochain jour ouvré puis le retrait de la date depuis le véritable formulaire
+La sonde vérifie aussi le rang **pas de date** des tâches sans date prévue, le
+report à demain puis le retrait de la date depuis le véritable formulaire
 Vue, l'absence de doublons et les compteurs séparant tâches à faire et terminées.
 
 Le comportement par défaut de la sonde est celui de D7 : masquage et réutilisation. Pour retrouver la référence historique de destruction, ajouter `--probe-destroy-windows` ; cette variante est confinée à la sonde debug avec `MYSTLINE_PROBE_DIR`. Les deux modes suivent le même parcours et attendent dix secondes après fermeture, avec une source temporaire vide dans un processus neuf. La sonde vérifie également le focus du champ de capture, l'effacement du brouillon à la fermeture et sa conservation lors d'une simple demande de focus. Le mode normal vérifie aussi la fermeture native des paramètres et le basculement du panneau. Les commandes d'observation du DOM sont réservées à la sonde et exclues du profil release.
 
 ## Lire et maintenir les tests F2
 
-Les tests F2 servent de documentation : nommer chaque scénario selon le comportement utilisateur, citer sa règle `RG-F2-xx` et structurer les commentaires en **Étant donné / Quand / Alors**. Vérifier des résultats observables (titre, métadonnées, section, état de saisie, fichier après réouverture), plutôt que recopier les branches de l'implémentation.
+Les tests F2 servent de documentation : nommer chaque scénario selon le comportement utilisateur, citer sa règle `RG-F2-xx` et structurer les commentaires en **Étant donné / Quand / Alors**. Vérifier des résultats observables (titre, métadonnées, rang de tri, état de saisie, fichier après réouverture), plutôt que recopier les branches de l'implémentation.
 
 Les [parcours persistés](../tests/f2_documentation.rs) s'exécutent avec `cargo test --test f2_documentation`. Ils couvrent capture enrichie, édition, annulation, permutations filtrées, erreurs et conflits avec un éditeur externe. Les tests du [parseur](../src/presentation/input.rs) et du [panneau](../src/presentation/panel.rs) s'exécutent avec `cargo test --lib presentation::`. Les tests du snapshot et de sa coordination sont dans `src/runtime/` : `cargo test --lib runtime::`. Les tests spécifiques à Iced ont été retirés ; les scénarios DOM Vue et les tests du contrat IPC complètent désormais les parcours Rust, comme indiqué dans [le suivi de migration](migration-tauri-vue.md).
 

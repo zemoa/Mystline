@@ -11,8 +11,8 @@ type Surface = "capture" | "panel"
 interface Source { generation: number; revision: number }
 interface UpdateStatus { sequence: number; phase: string; version: string | null; message: string }
 interface DesktopStatus { version: number; tasksFile: string; taskCount: number; revision: number; today: string; autostart: boolean; showTasksOnStartup: boolean; captureShortcut: string; panelShortcut: string; captureActive: boolean; panelActive: boolean; repositoryError: string | null }
-interface Row { position: number; section: "overdue" | "current" | "nextWorkday" | "later"; title: string; tags: string[]; planned: string | null; deadline: string | null; deadlineTone: string | null; completed: boolean; completedDate: string | null; editDraft: string }
-interface TaskView { version: number; source: Source; today: string; nextWorkday: string; busy: boolean; rows: Row[] }
+interface Row { position: number; rank: "overdue" | "today" | "tomorrow" | "undated" | "later"; title: string; tags: string[]; planned: string | null; deadline: string | null; deadlineTone: string | null; completed: boolean; completedDate: string | null; editDraft: string }
+interface TaskView { version: number; source: Source; today: string; busy: boolean; rows: Row[] }
 interface Editor { position: number; source: Source; draft: string; invalidated: boolean }
 const params = new URLSearchParams(location.search)
 const requestedSurface = params.get("surface")
@@ -54,12 +54,6 @@ let requests = 0
 let resizeObserver: ResizeObserver | null = null
 const request = () => ({ query: query.value, tag: tag.value, history: history.value })
 const sameSource = (left: Source, right: Source) => left.generation === right.generation && left.revision === right.revision
-const groups = computed(() => history.value ? [{ key: "history", label: "Tâches terminées", hint: "", rows: view.value?.rows || [] }] : [
-  { key: "overdue", label: "En retard", hint: "Deadline dépassée." },
-  { key: "current", label: "En cours", hint: "Sans date prévue · prévu aujourd’hui ou auparavant." },
-  { key: "nextWorkday", label: "Prochain jour ouvré · " + dateLabel(view.value?.nextWorkday || "", true), hint: "" },
-  { key: "later", label: "Plus tard", hint: "Autres dates prévues futures." },
-].map(group => ({ ...group, rows: (view.value?.rows || []).filter(row => row.section === group.key) })))
 const panelDate = computed(() => {
   const today = view.value?.today || status.value?.today
   return today ? new Date(today + "T12:00:00").toLocaleDateString("fr-FR", { weekday: "long", day: "numeric", month: "long" }) : ""
@@ -68,13 +62,24 @@ function dateLabel(date: string, weekday = false) {
   if (!date) return ""
   return new Date(date + "T12:00:00").toLocaleDateString("fr-FR", { ...(weekday ? { weekday: "long" as const } : {}), day: "numeric", month: "short" })
 }
-function sectionCount(rows: Row[]) {
+const selectedTask = computed(() => view.value?.rows.find(row => row.position === selected.value))
+function relativeDate(date: string, prefix = "") {
+  const today = view.value?.today
+  if (date === today) return "aujourd’hui · " + dateLabel(date)
+  if (today) {
+    const tomorrow = new Date(today + "T12:00:00")
+    tomorrow.setDate(tomorrow.getDate() + 1)
+    if (date === `${tomorrow.getFullYear()}-${String(tomorrow.getMonth() + 1).padStart(2, "0")}-${String(tomorrow.getDate()).padStart(2, "0")}`) return "demain · " + dateLabel(date)
+  }
+  return prefix + dateLabel(date)
+}
+function taskCount(rows: Row[]) {
   const completed = rows.filter(row => row.completed).length
   const done = `${completed} terminée${completed > 1 ? "s" : ""}`
   return history.value ? done : `${rows.length - completed} à faire${completed ? " · " + done : ""}`
 }
 function canReorder(row: Row, down: boolean) {
-  const rows = (view.value?.rows || []).filter(other => !other.completed && other.section === row.section)
+  const rows = (view.value?.rows || []).filter(other => !other.completed && other.rank === row.rank)
   const index = rows.findIndex(other => other.position === row.position)
   return index >= 0 && (down ? index < rows.length - 1 : index > 0)
 }
@@ -341,7 +346,7 @@ onUnmounted(() => { disposed = true; for (const stop of unlisteners) stop(); res
       </header>
       <div class="page-heading">
         <h1>{{ settingsView ? "Paramètres" : history ? "Historique" : "Mes tâches" }}</h1>
-        <p v-if="!settingsView && panelDate" class="panel-date">{{ panelDate }}</p>
+        <div v-if="!settingsView" class="panel-summary"><p v-if="panelDate" class="panel-date">{{ panelDate }}</p><span class="task-count">{{ taskCount(view?.rows || []) }}</span></div>
       </div>
       <p v-if="error || status?.repositoryError" role="alert" class="error">{{ error || status?.repositoryError }}</p>
       <p v-if="success" role="status" class="success">{{ success }}</p>
@@ -359,30 +364,28 @@ onUnmounted(() => { disposed = true; for (const stop of unlisteners) stop(); res
           <SyntaxHelp v-if="help" /><p class="muted">Entrée pour ajouter · Échap pour annuler · F1 pour l’aide</p><button class="primary" :disabled="pending">{{ pending ? "Enregistrement…" : "Ajouter" }}</button>
         </form>
         <div ref="list" class="task-list" tabindex="0" role="list" aria-label="Tâches">
-          <section v-for="group in groups" :key="group.key" :class="['task-section', group.key]">
-            <h2>{{ group.label }}<span>{{ sectionCount(group.rows) }}</span></h2>
-            <p v-if="group.hint" class="section-hint">{{ group.hint }}</p>
-            <p v-if="!group.rows.length" class="empty">{{ query || tag ? "Aucun résultat" : history ? "Aucune tâche terminée" : "Aucune tâche" }}</p>
-            <article v-for="row in group.rows" :key="row.position" role="listitem" :data-position="row.position" :class="['task', { selected: selected === row.position, completed: row.completed }]" @click="selected = row.position">
-              <input v-if="!history" type="checkbox" :checked="row.completed" :disabled="pending || view?.busy || !!editor || adding" :aria-label="(row.completed ? 'Réouvrir : ' : 'Terminer : ') + row.title" @change="toggleTask(row)" />
-              <Icon v-else name="check" />
-              <div class="task-body">
-                <button v-if="!history && !row.completed" class="task-title" @click="beginEdit(row)">{{ row.title }}</button><span v-else class="task-title">{{ row.title }}</span>
-                <div v-if="row.tags.length || row.planned || row.deadline || row.completed" class="task-details">
-                  <button v-for="item in row.tags" :key="item" :class="['tag', tagClass(item)]" :aria-label="'Filtrer par #' + item" @click.stop="tag = item">#{{ item }}</button>
-                  <span v-if="history" class='date'>Terminée {{ dateLabel(row.completedDate || '') }}</span>
-                  <span v-else-if="row.planned" class='date'>{{ row.planned === view?.today ? "Prévu aujourd’hui" : "Prévu le " + dateLabel(row.planned) }}</span>
-                  <span v-if="row.deadline" :class="['deadline', row.deadlineTone]">Échéance {{ !row.completed && row.deadline === view?.today ? "aujourd’hui" : dateLabel(row.deadline) }}</span>
-                  <span v-if="!history && row.completed" class="date">Terminée aujourd’hui</span>
-                </div>
-                <div v-if="!history && !row.completed && selected === row.position && !editor && !adding" class="row-actions">
-                  <button :disabled="pending || view?.busy || !canReorder(row, false)" :aria-label="'Monter : ' + row.title" @click.stop="reorder(false)">↑ Monter</button>
-                  <button :disabled="pending || view?.busy || !canReorder(row, true)" :aria-label="'Descendre : ' + row.title" @click.stop="reorder(true)">↓ Descendre</button>
-                </div>
+          <p v-if="!view?.rows.length" class="empty">{{ query || tag ? "Aucun résultat" : history ? "Aucune tâche terminée" : "Aucune tâche" }}</p>
+          <article v-for="row in view?.rows || []" :key="row.position" role="listitem" :data-position="row.position" :data-rank="row.rank" :class="['task', { selected: selected === row.position, completed: row.completed }]" @click="selected = row.position">
+            <input v-if="!history" type="checkbox" :checked="row.completed" :disabled="pending || view?.busy || !!editor || adding" :aria-label="(row.completed ? 'Réouvrir : ' : 'Terminer : ') + row.title" @change="toggleTask(row)" />
+            <Icon v-else name="check" />
+            <div class="task-body">
+              <button v-if="!history && !row.completed" class="task-title" @click="beginEdit(row)">{{ row.title }}</button><span v-else class="task-title">{{ row.title }}</span>
+              <div v-if="row.tags.length || row.planned || row.deadline || row.completed" class="task-details">
+                <button v-for="item in row.tags" :key="item" :class="['tag', tagClass(item)]" :aria-label="'Filtrer par #' + item" @click.stop="tag = item">#{{ item }}</button>
+                <span v-if="history" class='date'>Terminée {{ dateLabel(row.completedDate || '') }}</span>
+                <span v-else-if="row.planned" class='date'>{{ "Prévu " + relativeDate(row.planned, "le ") }}</span>
+                <span v-if="row.deadline" :class="['deadline', row.deadlineTone]">Échéance {{ !row.completed ? relativeDate(row.deadline) : dateLabel(row.deadline) }}</span>
+                <span v-if="row.deadlineTone === 'overdue'" class="overdue-badge">En retard</span>
+                <span v-if="!history && row.completed" class="date">Terminée aujourd’hui</span>
               </div>
-              <button v-if="!history && !row.completed" class="edit-action" :aria-label="'Modifier : ' + row.title" @click="beginEdit(row)"><Icon name="edit" /></button>
-            </article>
-          </section>
+            </div>
+            <button v-if="!history && !row.completed" class="edit-action" :aria-label="'Modifier : ' + row.title" @click="beginEdit(row)"><Icon name="edit" /></button>
+          </article>
+        </div>
+        <div v-if="!history && selectedTask && !selectedTask.completed && !editor && !adding" class="row-actions">
+          <span class="selection-label">Sélection : {{ selectedTask.title }}</span>
+          <button :disabled="pending || view?.busy || !canReorder(selectedTask, false)" :aria-label="'Monter : ' + selectedTask.title" @click="reorder(false)">↑ Monter</button>
+          <button :disabled="pending || view?.busy || !canReorder(selectedTask, true)" :aria-label="'Descendre : ' + selectedTask.title" @click="reorder(true)">↓ Descendre</button>
         </div>
         <footer><button v-if="!history" class="primary add-task" :disabled="adding || !!editor" @click="beginAdd"><Icon name="add" />Ajouter une tâche</button><span v-if="view?.busy" class="muted" role="status">Enregistrement…</span><span v-else class="muted">↑ ↓ naviguer · Espace cocher · F1 aide</span></footer>
         <button v-if="recovered.length" class="secondary" :disabled="!canRecover" @click="recoverDraft">Récupérer une saisie non enregistrée</button>

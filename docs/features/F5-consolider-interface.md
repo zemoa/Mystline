@@ -4,7 +4,7 @@
 
 ## Objectif et périmètre
 
-Donner à toutes les surfaces de Mystline une identité visuelle commune, compacte et conforme à la direction **Brume, palette Indigo**, choisie le 14 octobre 2026, sans porter les règles métier établies par F0 à F3. La [maquette de référence](../mockup.png) et les [parcours validés le 22 octobre 2026](../designs/refonte-fonctionnelle/README.md) présentent le regroupement En cours ; le [SVG Brume Indigo](../designs/brume-indigo.svg) conserve la direction graphique initiale. F5 couvre la capture, le panneau quotidien, l'édition, la recherche, l'historique, les états d'aide et d'erreur ainsi que les paramètres existants.
+Donner à toutes les surfaces de Mystline une identité visuelle commune, compacte et conforme à la direction **Brume, palette Indigo**, choisie le 14 octobre 2026, sans porter les règles métier établies par F0 à F3. La [maquette A validée le 26 octobre 2026](../designs/liste-sans-sections/README.md) définit la liste sans sections ; le [SVG Brume Indigo](../designs/brume-indigo.svg) conserve la direction graphique initiale. F5 couvre la capture, le panneau quotidien, l'édition, la recherche, l'historique, les états d'aide et d'erreur ainsi que les paramètres existants.
 
 L'éditeur reste fondé sur la syntaxe explicite `/p`, `/d` et `#tag`. Les trois filtres et l'édition structurée de la [maquette initiale](../designs/mockup-initiale.png), la suppression, le glisser-déposer et le thème sombre restent hors périmètre.
 
@@ -12,10 +12,10 @@ L'éditeur reste fondé sur la syntaxe explicite `/p`, `/d` et `#tag`. Les trois
 
 - **RG-F5-01 — Design system partagé.** Toutes les surfaces utilisent la palette claire Brume Indigo, les mêmes espacements, rayons, bordures et styles de contrôle. La typographie est sans sérif ; les tags partagent un traitement indigo discret. Les icônes sont des SVG symboliques embarqués et ne dépendent pas des polices installées. Le panneau présente la marque Mystline au-dessus du titre de la vue ; le quotidien et l'historique affichent aussi la date locale fournie par le runtime.
 - **RG-F5-02 — Surfaces compactes.** La capture et le panneau ont des dimensions fixes. Les paramètres n'ont pas de barre de titre système et sont assez hauts pour afficher le formulaire complet sur un écran courant, tout en conservant un défilement de secours sur les petits écrans. Les listes et contenus exceptionnellement longs défilent sans dépasser l'écran ; la capture se redimensionne en place vers le bas uniquement pour l'aide ou une erreur.
-- **RG-F5-03 — Hiérarchie du panneau.** Le panneau présente les quatre sections exclusives de F2 : En retard, En cours, Prochain jour ouvré et Plus tard. Les en-têtes sont compacts, en capitales, soulignés et accompagnés d'un repère vertical et d'un compteur distinguant les tâches à faire et terminées. Une indication compacte explique le regroupement En cours ; la date prévue initiale reste visible sur les tâches planifiées et le prochain jour ouvré précise son jour de semaine. La sélection clavier associe un fond indigo pâle et un trait indigo. Le focus de la liste n'ajoute aucun liseré autour de l'ensemble des sections. Le retard utilise un rouge distinct ; une échéance du jour, un filtre, une tâche terminée et un état vide possèdent chacun un traitement visuel distinct.
-- **RG-F5-04 — Actions explicites.** Recherche, historique, paramètres, retour, fermeture et enregistrement disposent de boutons visibles. La tâche active sélectionnée propose Monter et Descendre, désactivés aux bornes de sa section. Ces boutons complètent les raccourcis existants sans les remplacer et conservent un focus clavier identifiable.
+- **RG-F5-03 — Hiérarchie du panneau.** Le panneau présente une liste sans sections, triée par F2. La case et le titre précèdent les métadonnées sous le titre : tags, date prévue et deadline. Le compteur global apparaît près de la date du panneau. La sélection clavier associe fond indigo pâle et trait indigo ; le focus de liste n'ajoute pas de liseré global. Le retard possède un badge rouge sur la ligne. L'échéance demain est en ambre foncé sur fond ambre clair et indique explicitement demain avec sa date. L'échéance du jour, les filtres, les tâches terminées et l'état vide gardent un traitement distinct. Les métadonnées longues reviennent à la ligne sans être masquées.
+- **RG-F5-04 — Actions explicites.** Recherche, historique, paramètres, retour, fermeture et enregistrement disposent de boutons visibles. Les boutons Monter et Descendre sous la liste concernent la tâche active sélectionnée ; ils sont désactivés aux bornes de son rang de tri. Ces boutons complètent les raccourcis existants sans les remplacer et conservent un focus clavier identifiable.
 - **RG-F5-05 — États transitoires.** Aide, erreur, recherche, filtre et brouillon restent lisibles dans la surface concernée. Fermer le panneau abandonne ces états non enregistrés ; sa prochaine ouverture présente la vue quotidienne.
-- **RG-F5-06 — Comportement préservé.** Le format `tasks.md`, les commandes applicatives, les règles de classement, l'historique, la complétion et la persistance ne changent pas.
+- **RG-F5-06 — Comportement préservé.** Le format `tasks.md`, les commandes applicatives, le tri défini par F2, l'historique, la complétion et la persistance ne changent pas.
 
 ## Palette Brume Indigo
 
@@ -35,6 +35,8 @@ y compris dans l'historique et les paramètres. Aucun stockage de position n'est
 | Tags, aide et édition | `#ECEFF7` |
 | Retard et erreurs | `#B24450` |
 | Fond d'erreur | `#F9E8ED` |
+| Échéance demain — texte | `#865600` |
+| Échéance demain — fond | `#FFF0CD` |
 
 Les champs et les contrôles secondaires sont blancs ; les boutons principaux utilisent un texte blanc sur indigo. Les confirmations et badges actifs conservent un vert discret (`#386552` sur `#E7F1EB`). Le [SVG de référence](../designs/brume-indigo.svg) accompagne l'export PNG.
 

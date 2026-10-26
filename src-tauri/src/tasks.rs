@@ -4,7 +4,7 @@ use mystline::{
     application::TaskCommand,
     presentation::{
         input::parse_input,
-        panel::{DeadlineTone, PanelMode, PanelState, Section, next_workday, task_deadline_tone},
+        panel::{DeadlineTone, PanelMode, PanelState, SortRank, task_deadline_tone},
     },
     repository::Snapshot,
     runtime::task_store::SourceRevision,
@@ -27,7 +27,6 @@ pub struct TaskView {
     pub version: u64,
     pub source: SourceRevision,
     pub today: String,
-    pub next_workday: String,
     pub busy: bool,
     pub rows: Vec<TaskRow>,
 }
@@ -36,7 +35,7 @@ pub struct TaskView {
 #[serde(rename_all = "camelCase")]
 pub struct TaskRow {
     pub position: usize,
-    pub section: &'static str,
+    pub rank: &'static str,
     pub title: String,
     pub tags: Vec<String>,
     pub planned: Option<String>,
@@ -74,11 +73,12 @@ pub fn project(
             let task = &snapshot.tasks[row.index];
             TaskRow {
                 position: row.index,
-                section: match row.section {
-                    Section::Overdue => "overdue",
-                    Section::Current => "current",
-                    Section::NextWorkday => "nextWorkday",
-                    Section::Later => "later",
+                rank: match row.rank {
+                    SortRank::Overdue => "overdue",
+                    SortRank::Today => "today",
+                    SortRank::Tomorrow => "tomorrow",
+                    SortRank::Undated => "undated",
+                    SortRank::Later => "later",
                 },
                 title: task.title.clone(),
                 tags: task.tags.clone(),
@@ -87,6 +87,7 @@ pub fn project(
                 deadline_tone: task_deadline_tone(task, today).map(|tone| match tone {
                     DeadlineTone::Overdue => "overdue",
                     DeadlineTone::Today => "today",
+                    DeadlineTone::Tomorrow => "tomorrow",
                     DeadlineTone::Future => "future",
                 }),
                 completed: task.completed,
@@ -101,7 +102,6 @@ pub fn project(
         version,
         source,
         today: today.to_string(),
-        next_workday: next_workday(today).to_string(),
         busy,
         rows,
     }

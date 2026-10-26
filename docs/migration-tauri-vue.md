@@ -8,7 +8,7 @@ Le 12 octobre 2026, les choix suivants ont été validés avec l'utilisateur.
 | --- | --- |
 | D1 | Préserver les fonctionnalités et la direction graphique actuelles. Le minimalisme concerne la structure Vue. |
 | D2 | Remplacement direct sur une branche dédiée, sans maintien des deux interfaces. |
-| D3 | Garder le domaine, les commandes, le parsing, les dates, sections, recherches et filtres en Rust. Vue porte l'affichage et les interactions. |
+| D3 | Garder le domaine, les commandes, le parsing, les dates, tri, recherches et filtres en Rust. Vue porte l'affichage et les interactions. |
 | D4 | Tauri 2, Vue 3, Vite, TypeScript, pnpm, CSS simple et état réactif Vue. |
 | D5 | Conserver la bibliothèque Rust à la racine et ajouter `frontend/` et `src-tauri/`. |
 | D6 | API tray Tauri sur Windows ; adaptation KSNI sur Linux ; plugin global-shortcut sur Windows/X11 ; portail XDG via ashpd sur Wayland ; plugins autostart et single-instance. |
@@ -120,7 +120,7 @@ Les 7 tests du backend passent, y compris fermeture avant chargement et distinct
 | --- | --- |
 | F0 | Changement transactionnel du fichier, création ou choix natif, autostart modifiable, intégrations desktop conservées. |
 | F1 | Capture persistée en FIFO, fermeture après confirmation, ajout intégré et consultation des tâches. |
-| F2 | Métadonnées, aide F1, quatre sections, édition, recherche, tags, filtres et réordonnancement clavier. |
+| F2 | Métadonnées, aide F1, liste sans sections triée par date et retard, édition, recherche, tags, filtres et réordonnancement clavier. |
 | F3 | Complétion et réouverture quotidiennes, historique consultatif, projections au changement de jour. |
 | F4 | Raccourcis persistés, collision refusée, remplacement par action et état actif/inactif. |
 | F5 | Palette claire, contrôles et SVG communs, tags colorés, états distincts, capture dimensionnée pour aide/erreur et listes défilantes. |

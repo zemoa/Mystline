@@ -79,19 +79,14 @@ Les concepts intrinsèques d'une tâche appartiennent au domaine.
 
 Les notions suivantes sont des projections de présentation :
 
-- En retard ;
-- En cours ;
-- Prochain jour ouvré ;
-- Plus tard ;
-- Historique ;
+- rangs de tri : retard, aujourd'hui, demain, pas de date, plus tard ;
+- historique ;
 - recherche ;
 - filtre par tag.
 
-Ces catégories ne sont jamais persistées.
-
-« En cours » regroupe les tâches sans date prévue et celles prévues aujourd'hui ou
-auparavant. Le retard de deadline prime sur ce regroupement. Les états du domaine restent
-« À faire » et « Terminée » ; le classement n'ajoute ni état ni date persistée.
+Ces rangs ne sont jamais persistés et ne créent aucune section visuelle. La date prévue
+détermine le rang sauf retard de deadline sur une tâche active. Les états du domaine
+restent « À faire » et « Terminée » ; aucune date n'est ajoutée automatiquement.
 
 ---
 
@@ -239,7 +234,7 @@ Le lot 1 a fourni trois surfaces prototypes. Le portage des fonctionnalités F0�
 │                                                         │
 │  Input parser (/p, /d, #tag)                           │
 │  Recherche / filtres                                   │
-│  Sections calculées                                    │
+│  Rangs de tri calculés                                 │
 │  Navigation clavier                                    │
 │  Snapshot UI optimiste                                 │
 └──────────────────────────┬──────────────────────────────┘
@@ -325,7 +320,7 @@ Task
 │
 └── données calculées
     ├── isOverdue
-    ├── displaySection
+    ├── sortRank
     ├── effectiveCompletionDate
     └── autres propriétés utiles
 ```
@@ -400,7 +395,7 @@ Les opérations suivantes restent côté présentation :
 
 - recherche ;
 - filtre par tag ;
-- regroupement en sections ;
+- tri de la liste continue ;
 - historique ;
 - calcul de la vue du jour.
 
@@ -436,7 +431,7 @@ Le domaine ne connaît pas :
 
 L'implémentation F2 regroupe le parseur dans `presentation::input` et les projections dans `presentation::panel`. `parse_input(text, today)` reçoit une date locale explicite, évaluée lors de la validation ; `format_edit(task)` réaffiche les dates absolues et échappe les tokens littéraux du titre. Ces fonctions sont testables sans fenêtre ni horloge système. L'égalité des tags sans casse et leur grammaire appartiennent au domaine et sont partagées avec le codec Markdown.
 
-L'entrée structurée `application::TaskInput` contient `title`, `planned`, `deadline` et `tags`. `create_task_from_input` crée une tâche ; `update_task` remplace ces quatre données sans modifier son état ; `reorder_tasks` permute deux positions. L'action `create_task` par titre littéral est conservée. Les actions portant sur une tâche existante reçoivent la révision du snapshot et ses positions physiques, puis passent par le commit atomique du repository. La présentation choisit les voisins visibles dans la même section ; le repository ne connaît ni section ni filtre.
+L'entrée structurée `application::TaskInput` contient `title`, `planned`, `deadline` et `tags`. `create_task_from_input` crée une tâche ; `update_task` remplace ces quatre données sans modifier son état ; `reorder_tasks` permute deux positions. L'action `create_task` par titre littéral est conservée. Les actions portant sur une tâche existante reçoivent la révision du snapshot et ses positions physiques, puis passent par le commit atomique du repository. La présentation choisit les voisins visibles de même rang de tri ; le repository ne connaît ni rang de tri ni filtre.
 
 ---
 
@@ -444,7 +439,7 @@ L'entrée structurée `application::TaskInput` contient `title`, `planned`, `dea
 
 ### 9.1 Frontières
 
-`presentation::input` et `presentation::panel` conservent en Rust le parsing, les dates, les sections, l'historique, la recherche et les filtres. Les règles sont testables sans fenêtre, avec des dates injectées.
+`presentation::input` et `presentation::panel` conservent en Rust le parsing, les dates, le tri, l'historique, la recherche et les filtres. Les règles sont testables sans fenêtre, avec des dates injectées.
 
 `src/runtime/task_store.rs` détient le snapshot optimiste et le snapshot confirmé. `src/runtime/coordinator.rs` sérialise les opérations et conserve les créations en FIFO pendant une écriture ou un rechargement. Les protections de génération, de séquence et de révision sont indépendantes de Tauri.
 
@@ -452,7 +447,7 @@ L'entrée structurée `application::TaskInput` contient `title`, `planned`, `dea
 
 ### 9.2 Échanges entre les surfaces et le cœur
 
-Le portage fonctionnel utilise `src-tauri/src/tasks.rs` pour les DTO et les intentions de présentation. `task_view(request)` reçoit la recherche, le tag et le mode quotidien/historique, et renvoie les lignes projetées par Rust : position physique, section, titre, tags, dates, état, tonalité de deadline et brouillon d'édition échappé. La réponse contient aussi la date locale, le prochain jour ouvré, l'occupation du stockage, la génération de source, la révision et une version d'observation. Vue ne recalcule ni les sections ni les filtres métier.
+Le portage fonctionnel utilise `src-tauri/src/tasks.rs` pour les DTO et les intentions de présentation. `task_view(request)` reçoit la recherche, le tag et le mode quotidien/historique, et renvoie les lignes projetées par Rust : position physique, rang de tri, titre, tags, dates, état, tonalité de deadline et brouillon d'édition échappé. La réponse contient aussi la date locale, l'occupation du stockage, la génération de source, la révision et une version d'observation. Vue ne recalcule ni le tri ni les filtres métier.
 
 `task_create`, `task_update`, `task_toggle` et `task_reorder` attendent la confirmation de persistance ou retournent une erreur lisible. Les actions sur une tâche existante fournissent la génération et la révision observées. Le backend calcule les voisins visibles pour le réordonnancement et vérifie que les intentions de complétion correspondent à la vue quotidienne. `task_reorder` renvoie la position cible après confirmation afin que la sélection suive la tâche déplacée ; l'absence de voisin ne provoque aucune écriture. Vue réserve l'édition aux tâches actives du quotidien. La création associe son attente à la session et à l'activation de la surface d'origine.
 
@@ -529,7 +524,7 @@ Dans `tasks.md`, `#` et `@` en début de token (début du titre ou après un bla
 
 Pour ces exemples, la ligne complète contient aussi `@title-escaped(1)`, par exemple `- [ ] \#architecture @title-escaped(1)`. Une ligne existante sans ce marqueur conserve ses antislashs littéraux (y compris `\\serveur` et `\#mission`) ; à la prochaine écriture applicative, elle reçoit si nécessaire le nouveau codage et son marqueur sans changer le titre. Un `#mission` non échappé dans un fichier externe reste un vrai tag. Les espaces internes du titre sont conservés ; lors de la création par titre seul, seuls les espaces aux deux extrémités sont retirés. Cette convention concerne le **fichier Markdown** : elle ne préjuge pas de l'interprétation future des commandes saisies dans l'interface (F2).
 
-Les sections de l'interface ne sont jamais écrites dans le Markdown.
+Les rangs de tri de l'interface ne sont jamais écrits dans le Markdown.
 
 ---
 
@@ -1259,7 +1254,7 @@ Ils ne doivent pas remettre en cause les frontières définies ici sans nouvelle
 | Historique | Vue calculée |
 | Recherche | Locale côté présentation |
 | Filtres | Côté présentation |
-| Sections du panneau | Côté présentation |
+| Tri du panneau | Côté présentation |
 | Cache | Repository |
 | Snapshot UI | Runtime Rust, rendu Vue |
 | UI | Optimiste |

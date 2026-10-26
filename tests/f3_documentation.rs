@@ -3,7 +3,7 @@
 use chrono::NaiveDate;
 use mystline::{
     application::{self, CreateTaskError},
-    presentation::panel::{DeadlineTone, PanelMode, PanelState, Section, task_deadline_tone},
+    presentation::panel::{DeadlineTone, PanelMode, PanelState, SortRank, task_deadline_tone},
     repository::{RepositoryError, Snapshot, TaskRepository},
 };
 use std::fs;
@@ -71,23 +71,23 @@ fn terminer_une_tache_conserve_ses_metadonnees_et_persiste_sa_date() {
 }
 
 #[test]
-fn une_tache_terminee_aujourdhui_reste_dans_une_seule_section() {
+fn une_tache_terminee_aujourdhui_garde_le_rang_de_sa_planification() {
     // RG-F3-03 — Étant donné un vendredi et toutes les possibilités de planification.
     for (planned, expected) in [
-        (" @planned(2026-10-09)", Section::Current),
-        (" @planned(2026-10-12)", Section::NextWorkday),
-        (" @planned(2026-10-20)", Section::Later),
-        (" @planned(2026-10-10)", Section::Later),
-        (" @planned(2026-10-08)", Section::Current),
-        ("", Section::Current),
+        (" @planned(2026-10-09)", SortRank::Today),
+        (" @planned(2026-10-12)", SortRank::Later),
+        (" @planned(2026-10-20)", SortRank::Later),
+        (" @planned(2026-10-10)", SortRank::Tomorrow),
+        (" @planned(2026-10-08)", SortRank::Today),
+        ("", SortRank::Undated),
     ] {
         let mut f = Fixture::new(&format!("- [ ] Support{planned} @deadline(2026-10-08)\n"));
         // Quand la tâche en retard est terminée.
         let snapshot = f.complete(0);
         let rows = f.panel.rows(&snapshot);
-        // Alors elle reste visible une seule fois et sa planification décide de la section.
+        // Alors elle reste visible une seule fois et sa planification décide du rang.
         assert_eq!(rows.len(), 1);
-        assert_eq!(rows[0].section, expected);
+        assert_eq!(rows[0].rank, expected);
         assert!(snapshot.tasks[rows[0].index].completed);
     }
 }
@@ -96,14 +96,11 @@ fn une_tache_terminee_aujourdhui_reste_dans_une_seule_section() {
 fn terminer_une_tache_en_retard_la_reclasse_sans_signaler_sa_deadline() {
     // RG-F3-03 — Étant donné une tâche sans planification, avec une deadline dépassée.
     let mut f = Fixture::new("- [ ] Contrat @deadline(2026-10-08)\n");
-    assert_eq!(
-        f.panel.rows(&f.repo.snapshot())[0].section,
-        Section::Overdue
-    );
+    assert_eq!(f.panel.rows(&f.repo.snapshot())[0].rank, SortRank::Overdue);
     // Quand elle est cochée.
     let snapshot = f.complete(0);
-    // Alors elle quitte En retard et reste terminée dans En cours.
-    assert_eq!(f.panel.rows(&snapshot)[0].section, Section::Current);
+    // Alors elle quitte En retard et reste terminée au rang pas de date.
+    assert_eq!(f.panel.rows(&snapshot)[0].rank, SortRank::Undated);
     assert_eq!(snapshot.tasks[0].deadline, Some(date(8)));
     assert_eq!(
         task_deadline_tone(&snapshot.tasks[0], date(9)),
@@ -367,7 +364,7 @@ fn lhistorique_se_consulte_sans_modifier_les_taches() {
 fn le_reordonnancement_des_taches_actives_ignore_les_terminees_du_jour() {
     // RG-F3-03 / F2 — Étant donné une terminée du jour entre deux tâches actives.
     let mut f = Fixture::new(
-        "- [ ] A\n- [x] Accomplie @completed(2026-10-09)\n- [ ] B @planned(2026-10-09)\n",
+        "- [ ] A @planned(2026-10-09)\n- [x] Accomplie @completed(2026-10-09)\n- [ ] B @planned(2026-10-09)\n",
     );
     let before = f.repo.snapshot();
     // Quand A est déplacée vers sa prochaine voisine active.

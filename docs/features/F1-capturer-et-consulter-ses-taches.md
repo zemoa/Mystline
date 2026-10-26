@@ -4,7 +4,7 @@
 
 ## Objectif et périmètre
 
-Permettre de noter une tâche avec son seul titre puis de la retrouver immédiatement. La capture et la consultation fonctionnent au clavier, sans ouvrir une fenêtre d'application classique. F0 fournit le processus, la persistance et les raccourcis ; F2 enrichit la saisie avec les métadonnées et introduit les quatre sections métier.
+Permettre de noter une tâche avec son seul titre puis de la retrouver immédiatement. La capture et la consultation fonctionnent au clavier, sans ouvrir une fenêtre d'application classique. F0 fournit le processus, la persistance et les raccourcis ; F2 enrichit la saisie avec les métadonnées et définit le tri de la liste sans sections.
 
 Références : [SFG, §2, §4–6, §9 et §17](../SFG.md) ; [architecture, §9 et §26](../ARCHITECTURE.md).
 
@@ -17,10 +17,10 @@ Raccourci de capture → zone de saisie focalisée → titre → Entrée → ret
 - **RG-F1-01 — Ouverture.** Le raccourci global de capture ou l'action correspondante du tray affiche immédiatement une petite fenêtre de saisie, avec le focus dans le champ texte. Une nouvelle capture commence avec une saisie vide. Le bouton d'ajout du panneau affiche une saisie intégrée équivalente.
 - **RG-F1-02 — Minimum requis.** Un titre non vide suffit à créer une tâche « À faire ». Dates, deadline, tags et priorité ne sont jamais imposés. Une saisie vide ou constituée uniquement d'espaces n'est pas enregistrée ; elle reste disponible pour correction.
 - **RG-F1-03 — Validation.** Avec une saisie valide, Entrée soumet la tâche et la fenêtre disparaît après confirmation. Échap ferme la capture sans création. Si une autre opération de stockage est en cours, la création est mise en attente puis exécutée automatiquement. En cas d'échec de validation ou d'enregistrement, la saisie originale reste récupérable et une erreur est présentée dans la capture ; une tâche non confirmée n'est pas annoncée comme enregistrée.
-- **RG-F1-04 — Destination.** La tâche créée est persistée immédiatement par F0 et rejoint directement **En cours** lorsqu'un titre seul est saisi, sans date ajoutée automatiquement, sans Inbox ni étape de classement. Les métadonnées facultatives peuvent modifier ce regroupement selon F2.
+- **RG-F1-04 — Destination.** La tâche créée est persistée immédiatement par F0 et rejoint la liste au rang **pas de date** lorsqu'un titre seul est saisi, sans date ajoutée automatiquement, sans Inbox ni étape de classement. Les métadonnées facultatives peuvent modifier ce rang selon F2.
 - **RG-F1-05 — Panneau.** Le second raccourci global ou l'entrée « Ouvrir / masquer le panneau » du tray affiche le panneau s'il est masqué et le masque s'il est visible. Un clic principal sur l'icône du tray ouvre le panneau ou lui redonne le focus s'il est déjà ouvert, sans le masquer ni dupliquer sa fenêtre. Échap le ferme lorsqu'aucune interaction interne n'est en cours. Le panneau est compact, rapidement accessible, et affiche le snapshot courant plutôt qu'une copie indépendante des tâches.
 - **RG-F1-06 — Lecture au clavier.** À l'ouverture du panneau, la liste peut recevoir le focus ; l'utilisateur peut parcourir les tâches avec les flèches et en sélectionner une sans souris. Les actions sur la sélection (édition, réordonnancement, complétion) sont définies respectivement en F2 et F3.
-- **RG-F1-07 — Consultation initiale.** Avant l'ajout des projections de F2, le panneau permet de consulter les tâches actives, y compris celles chargées depuis un fichier existant. F2 détermine leur répartition finale entre les quatre sections ; F3 détermine la visibilité des tâches terminées.
+- **RG-F1-07 — Consultation initiale.** Avant l'ajout des projections de F2, le panneau permet de consulter les tâches actives, y compris celles chargées depuis un fichier existant. F2 détermine leur tri dans la liste continue ; F3 détermine la visibilité des tâches terminées.
 
 ## Vérifications fonctionnelles
 

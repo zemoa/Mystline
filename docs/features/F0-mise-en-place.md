@@ -40,4 +40,4 @@ Références : [SFG, §3–4 et §24](../SFG.md) ; [architecture, §2–5 et §1
 
 ## Frontière avec les autres features
 
-F0 fournit et sécurise le stockage, les événements de raccourcis et l'accès aux surfaces. F1 définit ce que font la capture et le panneau ; F2 définit les sections, l'édition et la recherche ; F3 définit la complétion et l'historique ; F4 permet de changer les deux raccourcis globaux.
+F0 fournit et sécurise le stockage, les événements de raccourcis et l'accès aux surfaces. F1 définit ce que font la capture et le panneau ; F2 définit le tri de la liste sans sections, l'édition et la recherche ; F3 définit la complétion et l'historique ; F4 permet de changer les deux raccourcis globaux.

@@ -199,37 +199,67 @@ describe('capture confirmée et erreurs', () => {
 })
 
 describe('regroupements fonctionnels validés', () => {
-  it('présente En cours, les dates initiales et des compteurs séparés pour les terminées', async () => {
+  it('présente une liste continue, les dates initiales et un compteur global', async () => {
     // RG-F2-08/10, F3-03 — Étant donné la projection Rust de tâches de différentes dates.
     const projected = taskView({ rows: [
-      row(0, 'Retard', { section: 'overdue', deadline: '2026-10-08', deadlineTone: 'overdue' }),
+      row(0, 'Retard', { rank: 'overdue', deadline: '2026-10-08', deadlineTone: 'overdue' }),
       row(1, 'Sans date', { tags: [] }),
       row(2, 'Prévue hier', { planned: '2026-10-08' }),
       row(3, 'Prévue ce jour', { planned: '2026-10-09' }),
       row(4, 'Contrat', { deadline: '2026-10-09', deadlineTone: 'today' }),
       row(5, 'Achevée', { completed: true, completedDate: '2026-10-09', tags: [] }),
-      row(6, 'Lundi', { section: 'nextWorkday', planned: '2026-10-12' }),
-      row(7, 'Samedi', { section: 'later', planned: '2026-10-10' }),
+      row(6, 'Lundi', { rank: 'later', planned: '2026-10-12' }),
+      row(7, 'Samedi', { rank: 'later', planned: '2026-10-10' }),
     ] })
     desktop.invoke.mockImplementation(async command => command === 'task_view' ? projected : command === 'desktop_status' ? status : undefined)
     // Quand le panneau est affiché.
     const app = await open('panel')
-    // Alors chaque tâche a une seule ligne et les en-têtes expliquent le regroupement.
+    // Alors les lignes conservent l'ordre Rust, les dates et un compteur global, sans sections.
     expect(app.findAll('.task')).toHaveLength(8)
-    const current = app.get('.task-section.current')
-    expect(current.get('h2').text()).toBe('En cours4 à faire · 1 terminée')
-    expect(current.text()).toContain('Sans date prévue · prévu aujourd’hui ou auparavant.')
-    expect(current.get('[data-position="2"]').text()).toContain('Prévu le 8 oct.')
-    expect(current.get('[data-position="3"]').text()).toContain('Prévu aujourd’hui')
-    expect(current.get('[data-position="4"]').text()).toContain('Échéance aujourd’hui')
-    expect(current.get('[data-position="5"]').text()).toContain('Terminée aujourd’hui')
-    expect(app.get('.task-section.nextWorkday h2').text()).toContain('Prochain jour ouvré · lundi 12 oct.')
-    expect(app.get('.task-section.later').text()).toContain('Samedi')
-    expect(app.find('.task-section.today').exists()).toBe(false)
-    expect(app.find('.task-section.all').exists()).toBe(false)
+    expect(app.findAll('.task').map(item => item.attributes('data-position'))).toEqual(['0', '1', '2', '3', '4', '5', '6', '7'])
+    expect(app.find('.task-section').exists()).toBe(false)
+    expect(app.find('.task-list h2').exists()).toBe(false)
+    expect(app.get('.task-count').text()).toBe('7 à faire · 1 terminée')
+    expect(app.get('[data-position="0"] .overdue-badge').text()).toBe('En retard')
+    expect(app.get('[data-position="2"]').text()).toContain('Prévu le 8 oct.')
+    expect(app.get('[data-position="3"]').text()).toContain('Prévu aujourd’hui')
+    expect(app.get('[data-position="4"]').text()).toContain('Échéance aujourd’hui')
+    expect(app.get('[data-position="5"]').text()).toContain('Terminée aujourd’hui')
+    expect(app.get('[data-position="7"]').text()).toContain('Prévu demain · 10 oct.')
+
   })
 
-  it('déplace une tâche après confirmation de sa date puis la remet En cours sans date', async () => {
+  it('signale demain sur la deadline même sans date prévue, puis actualise au changement de jour', async () => {
+    // RG-F2-10 — Étant donné une deadline samedi, un vendredi, sans date prévue.
+    let projected = taskView({ rows: [row(0, 'Contrat', { deadline: '2026-10-10', deadlineTone: 'tomorrow' })] })
+    desktop.invoke.mockImplementation(async command => command === 'task_view' ? projected : command === 'desktop_status' ? status : undefined)
+    const app = await open('panel')
+    expect(app.get('.deadline.tomorrow').text()).toBe('Échéance demain · 10 oct.')
+    expect(app.find('.overdue-badge').exists()).toBe(false)
+    expect(app.find('.date').exists()).toBe(false)
+    // Quand minuit actualise la projection, alors le libellé et le traitement suivent la date locale Rust.
+    projected = taskView({ version: 22, today: '2026-10-10', rows: [row(0, 'Contrat', { deadline: '2026-10-10', deadlineTone: 'today' })] })
+    emit('task-changed', null); await flushPromises()
+    expect(app.find('.deadline.tomorrow').exists()).toBe(false)
+    expect(app.get('.deadline.today').text()).toBe('Échéance aujourd’hui · 10 oct.')
+    // Une tâche terminée ne porte plus d'alerte, même si sa deadline était demain.
+    projected = taskView({ version: 23, rows: [row(0, 'Contrat', { completed: true, completedDate: '2026-10-09', deadline: '2026-10-10', deadlineTone: 'future' })] })
+    emit('task-changed', null); await flushPromises()
+    expect(app.find('.deadline.tomorrow').exists()).toBe(false)
+    expect(app.get('.deadline').text()).toBe('Échéance 10 oct.')
+  })
+
+  it('affiche un seul état vide et aucun résultat pour une recherche sans correspondance', async () => {
+    desktop.invoke.mockImplementation(async command => command === 'task_view' ? taskView({ rows: [] }) : command === 'desktop_status' ? status : undefined)
+    const app = await open('panel')
+    expect(app.findAll('.empty')).toHaveLength(1)
+    expect(app.get('.empty').text()).toBe('Aucune tâche')
+    key('f', { ctrlKey: true }); await flushPromises()
+    await app.get('#search').setValue('introuvable'); await flushPromises()
+    expect(app.get('.empty').text()).toBe('Aucun résultat')
+  })
+
+  it('déplace une tâche après confirmation de sa date puis la remet sans date', async () => {
     // RG-F2-05/08 — Étant donné une tâche sans date et une édition intégrée.
     let projected = taskView({ rows: [row(0, 'Appeler le garage', { tags: [], editDraft: 'Appeler le garage' })] })
     desktop.invoke.mockImplementation(async (command, args) => {
@@ -238,7 +268,7 @@ describe('regroupements fonctionnels validés', () => {
       if (command === 'task_update') {
         const planned = args.draft === 'Appeler le garage /p lundi'
         projected = taskView({ version: projected.version + 1, source: { generation: 2, revision: projected.source.revision + 1 }, rows: [
-          row(0, 'Appeler le garage', { tags: [], section: planned ? 'nextWorkday' : 'current', planned: planned ? '2026-10-12' : null, editDraft: planned ? 'Appeler le garage /p 2026-10-12' : 'Appeler le garage' }),
+          row(0, 'Appeler le garage', { tags: [], rank: planned ? 'later' : 'undated', planned: planned ? '2026-10-12' : null, editDraft: planned ? 'Appeler le garage /p 2026-10-12' : 'Appeler le garage' }),
         ] })
       }
     })
@@ -249,29 +279,28 @@ describe('regroupements fonctionnels validés', () => {
     await app.get('form.composer').trigger('submit'); await flushPromises()
     expect(desktop.invoke).toHaveBeenCalledWith('task_update', { source: { generation: 2, revision: 7 }, position: 0, draft: 'Appeler le garage /p lundi' })
     // Alors la projection confirmée déplace la tâche sans doublon.
-    expect(app.get('.task-section.current').findAll('.task')).toHaveLength(0)
-    expect(app.get('.task-section.nextWorkday').findAll('.task')).toHaveLength(1)
+    expect(app.findAll('.task')).toHaveLength(1)
+    expect(app.get('[data-position="0"]').text()).toContain('Prévu le 12 oct.')
     await app.get('[aria-label="Modifier : Appeler le garage"]').trigger('click')
     expect(app.get<HTMLInputElement>('#edit').element.value).toBe('Appeler le garage /p 2026-10-12')
-    // Quand la date est retirée, alors la tâche revient seule En cours.
+    // Quand la date est retirée, alors la tâche revient seule sans date.
     await app.get('#edit').setValue('Appeler le garage')
     await app.get('form.composer').trigger('submit'); await flushPromises()
-    expect(app.get('.task-section.current').findAll('.task')).toHaveLength(1)
-    expect(app.get('.task-section.nextWorkday').findAll('.task')).toHaveLength(0)
+    expect(app.get('[data-position="0"]').text()).not.toContain('Prévu')
     expect(app.findAll('.task')).toHaveLength(1)
   })
 
-  it('les boutons de déplacement suivent la sélection et respectent les bornes de section', async () => {
-    // RG-F2-13 — Étant donné deux tâches En cours et une autre section.
-    const upcoming = row(2, 'Lundi', { section: 'nextWorkday', planned: '2026-10-12' })
-    desktop.invoke.mockImplementation(async command => command === 'task_view' ? taskView({ rows: [row(0, 'Sans date'), row(1, 'Du jour', { planned: '2026-10-09' }), upcoming] }) : command === 'desktop_status' ? status : undefined)
+  it('les boutons de déplacement suivent la sélection et respectent les bornes de rang', async () => {
+    // RG-F2-13 — Étant donné deux tâches sans date et une tâche de rang différent.
+    const upcoming = row(2, 'Lundi', { rank: 'later', planned: '2026-10-12' })
+    desktop.invoke.mockImplementation(async command => command === 'task_view' ? taskView({ rows: [row(0, 'Sans date'), row(1, 'Sans date aussi'), upcoming] }) : command === 'desktop_status' ? status : undefined)
     const app = await open('panel')
     expect(app.get<HTMLButtonElement>('[aria-label="Monter : Sans date"]').element.disabled).toBe(true)
     expect(app.get<HTMLButtonElement>('[aria-label="Descendre : Sans date"]').element.disabled).toBe(false)
-    desktop.invoke.mockImplementation(async command => command === 'task_reorder' ? 1 : command === 'task_view' ? taskView({ version: 22, source: { generation: 2, revision: 8 }, rows: [row(0, 'Du jour', { planned: '2026-10-09' }), row(1, 'Sans date'), upcoming] }) : undefined)
+    desktop.invoke.mockImplementation(async command => command === 'task_reorder' ? 1 : command === 'task_view' ? taskView({ version: 22, source: { generation: 2, revision: 8 }, rows: [row(0, 'Sans date aussi'), row(1, 'Sans date'), upcoming] }) : undefined)
     // Quand la première tâche est descendue à la souris.
     await app.get('[aria-label="Descendre : Sans date"]').trigger('click'); await flushPromises()
-    // Alors la sélection suit la tâche et elle ne peut plus descendre vers une autre section.
+    // Alors la sélection suit la tâche et elle ne peut plus descendre vers un autre rang.
     expect(desktop.invoke).toHaveBeenCalledWith('task_reorder', { source: { generation: 2, revision: 7 }, position: 0, down: true, request: { query: '', tag: null, history: false } })
     expect(app.get('[data-position="1"]').classes()).toContain('selected')
     expect(app.get<HTMLButtonElement>('[aria-label="Descendre : Sans date"]').element.disabled).toBe(true)

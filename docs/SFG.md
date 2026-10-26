@@ -2,9 +2,10 @@
 
 > Migration Tauri/Vue : ces règles restent la référence fonctionnelle. Le portage F0–F5 et sa validation sont suivis dans [la migration](migration-tauri-vue.md).
 
-> Refonte fonctionnelle validée le 22 octobre 2026 : les tâches sans date prévue sont
-> regroupées dans **En cours**, avec celles prévues aujourd'hui ou auparavant.
-> Les [maquettes validées](designs/refonte-fonctionnelle/README.md) illustrent les parcours.
+> Présentation validée le 26 octobre 2026 : une liste sans sections, triée par
+> **Retard → aujourd'hui → demain → pas de date → plus tard**. Le retard est indiqué
+> sur la tâche et une échéance demain ressort en ambre. La [maquette A validée](designs/liste-sans-sections/README.md)
+> remplace les regroupements des maquettes du 22 octobre.
 
 ## 1. Objectif du produit
 
@@ -49,16 +50,11 @@ L’utilisateur n’est jamais obligé de renseigner :
 
 ---
 
-## 2.3 « En cours » est un regroupement automatique
+## 2.3 Deux états, une liste sans sections
 
-Une tâche possède seulement deux états :
-
-**À faire**
-**Terminée**
-
-La section **En cours** rassemble automatiquement les tâches sans date prévue et celles
-prévues aujourd'hui ou auparavant, sauf si une deadline dépassée les place dans **En retard**.
-Aucun statut de démarrage n'est à renseigner. Une date prévue future reporte la tâche.
+Une tâche possède seulement deux états : **À faire** et **Terminée**.
+Le panneau présente une liste continue. Les dates déterminent un rang de tri, sans
+ajouter de statut à gérer ni de section à l'écran.
 
 ---
 
@@ -66,7 +62,7 @@ Aucun statut de démarrage n'est à renseigner. Une date prévue future reporte 
 
 Il n’existe pas de champ de priorité du type Haute / Moyenne / Basse.
 
-L’ordre des tâches dans une section représente leur priorité relative.
+À rang de tri égal, l’ordre manuel des tâches représente leur priorité relative.
 
 L’utilisateur peut réordonner les tâches.
 
@@ -249,7 +245,7 @@ La tâche est créée.
 
 La fenêtre disparaît.
 
-Une capture avec un titre seul apparaît ensuite dans **En cours**, sans date ajoutée automatiquement.
+Une capture avec un titre seul apparaît dans la liste au rang **pas de date**, sans date ajoutée automatiquement.
 
 Le panneau principal propose également une action d'ajout. Elle affiche une saisie intégrée qui
 accepte la même syntaxe et enregistre la tâche avec Entrée, sans imposer de passer par le raccourci
@@ -331,66 +327,34 @@ Une barre dédiée au-dessus de l'en-tête permet de déplacer la fenêtre princ
 maintenant le bouton principal de la souris et en faisant glisser. Elle reste disponible
 dans l'historique et les paramètres affichés dans cette même fenêtre.
 
-Le panneau présente les tâches en quatre zones principales, dans cet ordre :
+Le panneau présente une liste continue, sans section ni en-tête de regroupement.
+Chaque tâche affiche sa case, son titre, puis ses tags, sa date prévue et sa deadline
+lorsqu'ils sont renseignés. Une tâche avec seulement un titre reste suffisante.
 
-## En retard
+Le tri applique le premier critère satisfait, dans cet ordre :
 
-Contient les tâches dont la deadline est dépassée et qui ne sont pas terminées.
+1. **Retard** : tâche non terminée dont la deadline est strictement passée, quelle que soit sa date prévue.
+2. **Aujourd'hui** : date prévue aujourd'hui ou passée, sans retard de deadline.
+3. **Demain** : date prévue le lendemain calendaire, week-end compris.
+4. **Pas de date** : aucune date prévue, même avec une deadline aujourd'hui ou future.
+5. **Plus tard** : autre date prévue future.
 
-Cette section doit être visuellement identifiable.
+Ces noms expliquent le tri ; ils ne sont pas des sections affichées. À rang égal,
+l'ordre du fichier, ajustable manuellement, est conservé. Aucun tri supplémentaire
+par date prévue ou deadline n'est imposé à l'intérieur d'un rang.
 
-Une tâche en retard doit être difficile à ignorer.
-
-L’utilisateur peut ensuite modifier sa deadline s’il souhaite la reprioriser.
-
-## En cours
-
-Contient les tâches sans date prévue, celles prévues aujourd'hui et celles prévues dans
-le passé, sauf si une deadline dépassée les classe dans **En retard**. Une deadline future,
-seule, ne reporte pas le travail : la tâche reste en cours.
-
-La date prévue initiale reste visible et n'est pas réécrite au changement de jour.
-
-Une tâche peut être cochée directement depuis cette section.
-
-## Prochain jour ouvré
-
-Contient les tâches prévues pour le prochain jour compris entre lundi et vendredi.
-
-Exemple :
-
-si nous sommes vendredi, cette section affiche les tâches prévues lundi.
-
-Les jours fériés ne sont pas pris en compte.
-
-Le jour de semaine et la date sont précisés dans l'en-tête.
-
-## Plus tard
-
-Contient les autres tâches avec une date prévue future. Le vendredi, une tâche prévue
-samedi y reste, alors que celle prévue lundi figure dans **Prochain jour ouvré**.
-
-La date prévue est indiquée discrètement sur chaque ligne.
-
-Chaque section distingue le nombre de tâches à faire et de tâches terminées aujourd'hui.
-Les sections vides restent identifiables ; une recherche sans correspondance indique
-« Aucun résultat ».
+Une date prévue passée reste visible et n'est pas réécrite. Une deadline future seule
+ne planifie pas la tâche. Un compteur global distingue les tâches à faire et terminées
+aujourd'hui dans la vue filtrée. Une liste vide affiche « Aucune tâche » ; une recherche
+ou un filtre sans correspondance affiche « Aucun résultat ».
 
 ---
 
 # 10. Absence de doublons
 
-Une tâche ne doit jamais apparaître simultanément dans plusieurs sections principales.
-
-Par exemple, une tâche sans date prévue avec une deadline dépassée apparaît uniquement
-dans **En retard**. Une tâche prévue aujourd'hui sans retard apparaît uniquement dans **En cours**.
-
-Ordre de classification :
-
-1. En retard
-2. En cours
-3. Prochain jour ouvré
-4. Plus tard
+Chaque tâche apparaît une seule fois dans la liste, y compris si elle possède une date
+prévue et une deadline. Le tri et les indications se recalculent lorsque la date locale
+change, sans modification automatique des dates enregistrées.
 
 ---
 
@@ -408,7 +372,11 @@ Elle ne doit pas prendre visuellement le dessus sur les tâches quotidiennes.
 
 Lorsque la deadline arrive aujourd’hui ou très prochainement, son affichage peut devenir plus visible.
 
-Lorsque la deadline est dépassée, la tâche passe dans la zone **En retard**.
+Une échéance demain porte le libellé « Échéance demain » accompagné de sa date,
+en ambre foncé sur fond ambre clair. Cette indication dépend de la deadline, pas de la date prévue.
+
+Lorsque la deadline est dépassée, la tâche remonte au rang Retard et porte un indicateur
+« En retard » rouge sur sa ligne. Aucune section dédiée n'est créée.
 
 ---
 
@@ -428,10 +396,10 @@ Elle peut simplement recevoir des tags tels que :
 
 `#objectif-mission`
 
-Sans date prévue, elle reste visible dans **En cours**.
+Sans date prévue, elle reste visible au rang **pas de date**, sauf retard de deadline.
 
 L'utilisateur peut la travailler immédiatement ou la reporter en lui attribuant une date
-prévue future. Retirer cette date la remet dans **En cours**.
+prévue future. Retirer cette date la remet au rang **pas de date**, sauf retard de deadline.
 
 Il n'est pas nécessaire de créer des sous-tâches.
 
@@ -460,11 +428,10 @@ Lorsqu'une tâche est terminée :
 Une tâche terminée encore visible dans le panneau quotidien peut être décochée. Elle redevient
 alors « À faire » et sa date de fin est retirée. L'historique reste une vue consultative.
 
-La complétion conserve le titre, la date prévue, la deadline et les tags de la tâche. Une
-tâche terminée ne figure plus dans **En retard** : le jour où elle est cochée, elle apparaît
-barrée dans **En cours** si elle n'a pas de date prévue ou si cette date est aujourd'hui ou
-passée, dans **Prochain jour ouvré** si la date correspond, et sinon dans **Plus tard**.
-Sa deadline n'est plus signalée comme un retard.
+La complétion conserve le titre, la date prévue, la deadline et les tags. La tâche
+terminée reste dans la liste, au rang de sa date prévue (aujourd'hui ou passée, demain,
+pas de date, plus tard), en ignorant le critère Retard. Sa deadline ne porte plus de
+signal de retard ni d'imminence. Sans date prévue, elle est donc au rang pas de date.
 
 À partir du lendemain, elle disparaît de la vue principale.
 
@@ -488,7 +455,7 @@ Elle permet notamment de retrouver ce qui a été réalisé les jours précéden
 
 # 16. Réorganisation
 
-Les tâches peuvent être réordonnées manuellement.
+Les tâches peuvent être réordonnées manuellement entre tâches de même rang de tri.
 
 L’ordre représente implicitement leur importance.
 
@@ -505,7 +472,7 @@ déplace la tâche vers le bas.
 Un glisser-déposer à la souris peut être proposé en complément.
 
 Les boutons « Monter » et « Descendre » de la tâche active sélectionnée permettent le
-même déplacement à la souris ; ils sont désactivés aux bornes de la section. Les tâches
+même déplacement à la souris ; ils sont désactivés aux bornes du rang de tri. Ces actions sont placées sous la liste et concernent la sélection. Les tâches
 terminées et les lignes masquées par un filtre gardent leurs positions.
 
 ---
@@ -672,35 +639,16 @@ Le produit remplit son objectif si l’utilisateur peut :
 
 # 26. Vision du panneau principal
 
-Conceptuellement, le panneau pourrait ressembler à ceci :
+La [maquette A validée le 26 octobre 2026](designs/liste-sans-sections/a-triee.png)
+constitue la référence de présentation du panneau : liste sans sections, métadonnées
+sous le titre, indicateur rouge de retard sur la ligne, échéance demain en ambre et
+actions Monter/Descendre sous la liste. [Sources et décisions](designs/liste-sans-sections/README.md).
 
-**EN RETARD**
-
-☐ Envoyer validation architecture — échéance hier `#mission`
-
-**AUJOURD'HUI**
-
-☐ Relire proposition technique `#client`
-
-☐ Améliorer documentation cellule archi `#fond` `#mission`
-
-~~✓ Répondre à Paul~~
-
-**PROCHAIN JOUR OUVRÉ · JEUDI**
-
-☐ Préparer support comité — échéance vendredi `#mission`
-
-**TOUTES LES TÂCHES**
-
-☐ Vérifier nouvelle version API `#architecture`
-
-☐ Revoir documentation ADR — prévu lundi `#fond`
-
-☐ Faire le point sur les accès
-
-La totalité de cette vue doit rester compacte et immédiatement lisible.
-
-La [maquette visuelle](mockup.png) constitue la référence de direction graphique. La direction **Brume, palette Indigo**, choisie le 14 octobre 2026, associe un fond gris bleuté clair, une typographie sans sérif, des lignes compactes et des repères indigo pour les actions et la sélection clavier. Les tags restent en pastilles discrètes et le retard possède un traitement distinct. Les règles de présentation et les couleurs sont définies dans [F5](features/F5-consolider-interface.md). La maquette ne remplace pas les règles fonctionnelles de cette spécification : le panneau conserve notamment ses quatre sections et l'édition par commandes explicites.
+La direction **Brume, palette Indigo**, choisie le 14 octobre 2026, reste applicable :
+fond gris bleuté clair, typographie sans sérif, lignes compactes, repères indigo pour
+les actions et la sélection clavier, tags discrets. Les couleurs sont définies dans
+[F5](features/F5-consolider-interface.md). La maquette ne remplace pas les règles
+fonctionnelles, notamment la syntaxe explicite d'édition.
 
 Le logo **« Lignes et coche »**, proposition 02 choisie le même jour, associe trois lignes indigo à une coche intégrée à la dernière. Ses [déclinaisons](designs/logos/propositions.md) servent de référence pour la marque et les icônes de l’application.
 

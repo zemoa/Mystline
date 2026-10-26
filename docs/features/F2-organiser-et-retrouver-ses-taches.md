@@ -4,15 +4,15 @@
 
 ## Objectif et périmètre
 
-Permettre d'ajouter facultativement du contexte aux tâches, de préparer le prochain jour ouvré et de retrouver immédiatement la tâche recherchée. Cette feature possède la syntaxe des métadonnées, l'édition, les quatre sections du panneau, l'ordre manuel, les tags, la recherche, les filtres et l'aide à la saisie. La création avec un simple titre et l'ouverture du panneau restent en F1 ; la complétion et l'historique relèvent de F3.
+Permettre d'ajouter facultativement du contexte aux tâches, de préparer le prochain jour ouvré et de retrouver immédiatement la tâche recherchée. Cette feature possède la syntaxe des métadonnées, l'édition, le tri de la liste sans sections, l'ordre manuel, les tags, la recherche, les filtres et l'aide à la saisie. La création avec un simple titre et l'ouverture du panneau restent en F1 ; la complétion et l'historique relèvent de F3.
 
 Références : [SFG, §2–3, §5, §7–13 et §16–22](../SFG.md) ; [architecture, §6–9 et §30](../ARCHITECTURE.md).
 
 ## Parcours couverts
 
 1. Dans la capture de F1 ou l'édition, saisir `Préparer le support /p jeudi /d vendredi #mission` : la tâche conserve le titre « Préparer le support » et reçoit une date prévue, une deadline et un tag.
-2. Depuis le panneau, sélectionner une tâche de fond, l'éditer pour la planifier au prochain jour ouvré et la retrouver dans la section correspondante ; cette préparation est facultative.
-3. Depuis le panneau, rechercher quelques lettres d'un titre, sélectionner un tag pour filtrer, ou déplacer une tâche dans sa section, principalement au clavier.
+2. Depuis le panneau, sélectionner une tâche de fond, l'éditer pour la planifier au prochain jour ouvré et la retrouver au rang correspondant dans la liste ; cette préparation est facultative.
+3. Depuis le panneau, rechercher quelques lettres d'un titre, sélectionner un tag pour filtrer, ou déplacer une tâche parmi les tâches du même rang, principalement au clavier.
 
 ## Règles de gestion — saisie et édition
 
@@ -26,23 +26,23 @@ Références : [SFG, §2–3, §5, §7–13 et §16–22](../SFG.md) ; [architec
 
 ## Règles de gestion — affichage et actions sur le panneau
 
-- **RG-F2-08 — Sections exclusives.** Pour une tâche « À faire », le panneau applique dans cet ordre le premier critère satisfait : (1) deadline antérieure à aujourd'hui → **En retard**, même sans date prévue ou avec une date prévue future ; (2) aucune date prévue, ou date prévue aujourd'hui ou passée → **En cours** ; (3) date prévue le prochain jour compris entre lundi et vendredi → **Prochain jour ouvré** ; (4) autre date prévue future → **Plus tard**. Les jours fériés ne modifient pas ce calcul. Une tâche n'apparaît jamais deux fois. « En cours » est un regroupement automatique, pas un état supplémentaire.
-- **RG-F2-09 — Dates et continuité.** Les dates ne contiennent pas d'heure. Le prochain jour ouvré est le prochain lundi-vendredi strictement postérieur à aujourd'hui : vendredi → lundi. Une tâche prévue samedi reste donc dans **Plus tard** le vendredi. Une tâche prévue hier et non faite reste dans **En cours**, sauf si sa deadline la place en **En retard**. Les tâches sans date prévue restent en cours au fil des jours. Aucune date n'est ajoutée ou reportée automatiquement ; le classement est recalculé lorsque la date locale change, y compris si le panneau reste ouvert.
-- **RG-F2-10 — Lisibilité des échéances.** **En retard** est visuellement identifiable. Une deadline future éloignée est indiquée discrètement ; une échéance du jour ou proche peut ressortir davantage, sans créer de notification ou de priorité indépendante de l'ordre des tâches. Une tâche avec deadline future mais sans date prévue reste dans **En cours**. La date prévue initiale reste visible sur les tâches planifiées, y compris dans En cours ; le jour de semaine et la date figurent dans l'en-tête du prochain jour ouvré. Les compteurs distinguent les tâches à faire et terminées du jour.
-- **RG-F2-11 — Recherche.** Une recherche accessible au clavier depuis le panneau, notamment par `Ctrl+F`, filtre instantanément la vue lorsque l'utilisateur tape quelques lettres. Elle recherche sans tenir compte de la casse dans les titres et les tags, sans modifier la tâche ni sa section calculée.
-- **RG-F2-12 — Filtre par tag.** Cliquer un tag ou le sélectionner au clavier puis valider limite la vue aux tâches qui le portent, sans tenir compte de la casse du tag. Le filtre peut être retiré sans altérer les tâches ; il n'impose pas de requêtes combinées complexes. Si recherche et filtre sont actifs, seuls leurs résultats communs sont affichés, en conservant les sections de RG-F2-08.
-- **RG-F2-13 — Ordre manuel.** Dans une section, `Ctrl+↑` et `Ctrl+↓`, ou les boutons « Monter » et « Descendre » de la tâche active sélectionnée, déplacent cette tâche vers la position active visible précédente ou suivante de cette section. Les tâches sans date et prévues aujourd'hui ou auparavant peuvent ainsi être réordonnées ensemble dans **En cours**. Le geste permute les deux positions visibles : pour `A, masquée, B`, déplacer B vers le haut donne `B, masquée, A`. Les tâches masquées et terminées conservent donc leurs positions et leur ordre entre elles. Aux bornes d'une section, le geste n'a aucun effet et n'écrit pas dans le fichier ; le bouton correspondant est désactivé. L'ordre résultant est conservé dans le fichier de tâches, sans champ de priorité Haute/Moyenne/Basse. Un changement de date ou de deadline change éventuellement de section ; le classement et l'ordre sont recalculés après la modification.
+- **RG-F2-08 — Liste sans sections et tri.** Le panneau affiche une liste continue, sans en-têtes de regroupement. Le premier critère satisfait définit le rang : deadline strictement passée d'une tâche non terminée → Retard ; date prévue aujourd'hui ou passée → aujourd'hui ; date prévue le lendemain calendaire → demain ; aucune date prévue → pas de date ; autre date prévue future → plus tard. Le retard prime même sur une planification future. Chaque tâche apparaît une seule fois. Ces rangs ne sont ni des sections visuelles ni des états persistés. À rang égal, l'ordre du fichier est conservé.
+- **RG-F2-09 — Dates et continuité.** Les dates ne contiennent pas d'heure. Demain désigne le lendemain calendaire, week-end compris : le vendredi, samedi est demain et lundi est plus tard. Une date prévue passée reste au rang aujourd'hui, sauf retard de deadline. Aucune date n'est ajoutée ou reportée automatiquement ; le tri et les indications sont recalculés lorsque la date locale change, y compris avec le panneau ouvert.
+- **RG-F2-10 — Informations sur chaque tâche.** Chaque ligne affiche la case, le titre puis, si renseignés, les tags, la date prévue initiale et la deadline. Aujourd'hui et demain sont explicités avec la date. Une deadline passée porte un indicateur rouge « En retard » sur la ligne ; celle de demain ressort en ambre foncé sur fond clair, indépendamment de la date prévue. Une échéance éloignée reste discrète et celle du jour garde son traitement distinct. Une deadline aujourd'hui ou future sans date prévue conserve le rang pas de date. Un compteur global distingue les tâches à faire et terminées du jour parmi les résultats visibles. Aucun résultat et liste vide sont distingués. Aucune notification n'est créée.
+- **RG-F2-11 — Recherche.** `Ctrl+F` ouvre une recherche instantanée sans tenir compte de la casse dans les titres et tags. Elle ne modifie ni les tâches ni leur rang de tri.
+- **RG-F2-12 — Filtre par tag.** Cliquer un tag ou le sélectionner au clavier puis valider limite la vue aux tâches qui le portent, sans tenir compte de la casse. Le filtre peut être retiré sans altérer les tâches. Recherche et filtre se combinent par intersection en conservant le tri de RG-F2-08, sans requêtes complexes supplémentaires.
+- **RG-F2-13 — Ordre manuel dans le tri.** `Ctrl+↑` et `Ctrl+↓`, ou les boutons Monter/Descendre sous la liste pour la tâche active sélectionnée, permutent les positions de deux tâches actives visibles voisines de même rang. Le tri automatique prime : aucune permutation entre rangs différents n'est possible. Les tâches masquées et terminées conservent leurs positions physiques ; pour A, masquée, B, déplacer B vers le haut donne B, masquée, A. Aux bornes du rang, aucune écriture n'a lieu et le bouton est désactivé. Le résultat est conservé dans le fichier, sans champ de priorité. Les dates et deadlines peuvent changer le rang après édition.
 - **RG-F2-14 — Navigation clavier.** Flèches et sélection du panneau (F1), Entrée pour éditer, `Ctrl+F` pour rechercher, Tab ou Maj+Tab puis Entrée sur un tag pour filtrer et `Ctrl+↑`/`Ctrl+↓` pour ordonner permettent le parcours principal sans souris. Le bouton « Retirer le filtre » est accessible par le même parcours. Les flèches dans un champ de texte ne déplacent pas les tâches ; Entrée dans la recherche rend la main à la sélection en conservant la requête. Échap ferme d'abord une aide, une édition ou une recherche active avant de masquer le panneau. Fermer la recherche par Échap efface sa requête ; le filtre par tag reste indépendant. Les commandes de complétion sont définies en F3.
 
 ## Vérifications fonctionnelles
 
 - Saisir `/p vendredi` un vendredi prévoit la tâche ce vendredi ; un jeudi, le vendredi suivant. `/p demain` suit le calendrier même le vendredi. Une date impossible ou `/d` sans valeur laisse la saisie ouverte avec son texte.
-- Le vendredi, une tâche prévue lundi apparaît dans **Prochain jour ouvré** ; une tâche prévue samedi dans **Plus tard** ; une tâche prévue aujourd'hui dont la deadline était hier apparaît uniquement dans **En retard** ; une tâche prévue hier sans deadline reste dans **En cours**.
-- Une édition retire une date ou un tag en supprimant sa commande affichée ; Échap ne change rien. La recherche par titre ou tag, le filtre et le déplacement au clavier restent utilisables sur les sections visibles.
+- Le vendredi, une tâche prévue samedi est triée au rang demain, lundi au rang plus tard ; une deadline passée prime et une date prévue passée sans retard rejoint aujourd'hui.
+- Une édition retire une date ou un tag en supprimant sa commande affichée ; Échap ne change rien. La recherche par titre ou tag, le filtre et le déplacement au clavier restent utilisables dans la liste filtrée.
 
 ## Frontière avec les autres features
 
-F2 classe et ordonne les tâches actives. F3 décide de la visibilité et de la section des tâches cochées le jour même, puis de leur présence dans l'historique. F0 gère l'écriture, la reprise des éditions extérieures et les erreurs de concurrence ; F1 gère l'ouverture des surfaces et la capture minimale ; F4 ne concerne que les raccourcis globaux configurables.
+F2 classe et ordonne les tâches actives. F3 décide de la visibilité et du rang des tâches cochées le jour même, puis de leur présence dans l'historique. F0 gère l'écriture, la reprise des éditions extérieures et les erreurs de concurrence ; F1 gère l'ouverture des surfaces et la capture minimale ; F4 ne concerne que les raccourcis globaux configurables.
 
 ## Tests comme documentation
 
@@ -58,17 +58,17 @@ Les règles Rust et leur interface Vue sont implémentées. Les scénarios ci-de
 | 04 | `les_commandes_vides_repetees_ou_sans_titre_sont_refusees` | [Parseur](../../src/presentation/input.rs) |
 | 04–05 | `une_edition_invalide_conserve_la_saisie_et_la_tache_anterieure` | [Parcours persistés](../../tests/f2_documentation.rs) |
 | 05 | `retirer_une_commande_retire_sa_metadonnee`, `echap_annule_ledition_sans_ecrire`, `planifier_une_tache_de_fond_prepare_le_prochain_jour_ouvre` | [Parcours persistés](../../tests/f2_documentation.rs) |
-| 05/08/10 | `reporter_puis_retirer_la_date_replace_la_tache_en_cours` | [Parcours persistés](../../tests/f2_documentation.rs) |
+| 05/08/10 | `reporter_puis_retirer_la_date_replace_la_tache_sans_date` | [Parcours persistés](../../tests/f2_documentation.rs) |
 | 06 | `les_tags_sont_valides_et_uniques_sans_casse` | [Parseur](../../src/presentation/input.rs) |
 | 06 / F0 | `les_tags_exterieurs_de_casses_differentes_designent_le_meme_tag` | [Parcours persistés](../../tests/f2_documentation.rs) |
 | 07–14 | `echap_ferme_laide_puis_ledition_puis_la_recherche` | [Panneau](../../src/presentation/panel.rs) |
-| 08–09 | `les_sections_sont_exclusives_et_ordonnees`, `le_prochain_jour_ouvre_ignore_le_weekend` | [Panneau](../../src/presentation/panel.rs) |
+| 08–09 | `le_tri_est_stable_sans_doublons_et_demain_inclut_le_weekend` | [Panneau](../../src/presentation/panel.rs) |
 | 09 | `le_changement_de_jour_reclasse_sans_modifier_les_taches`, `le_minuteur_vise_le_prochain_minuit_local` | [Panneau](../../src/presentation/panel.rs) |
 | 10 | `une_deadline_future_ne_planifie_pas_la_tache` | [Panneau](../../src/presentation/panel.rs) |
 | 08/10 | `le_retard_prime_sans_date_ou_avec_une_planification_future` | [Panneau](../../src/presentation/panel.rs) |
-| 11–12 | `recherche_et_filtre_par_tag_se_croisent_sans_changer_les_sections` | [Panneau](../../src/presentation/panel.rs) |
+| 11–12 | `recherche_et_filtre_par_tag_se_croisent_sans_changer_les_rangs` | [Panneau](../../src/presentation/panel.rs) |
 | 09–12 | `recherche_filtre_et_changement_de_jour_necrivent_pas` | [Parcours persistés](../../tests/f2_documentation.rs) |
-| 13 | `le_reordonnancement_respecte_les_sections_et_les_bornes` | [Panneau](../../src/presentation/panel.rs) |
+| 13 | `le_reordonnancement_respecte_les_rangs_et_les_bornes` | [Panneau](../../src/presentation/panel.rs) |
 | 13 | `le_reordonnancement_filtre_permute_les_positions_visibles` | [Parcours persistés](../../tests/f2_documentation.rs) |
 | F0 / F2 | `un_conflit_necrase_pas_une_edition_exterieure`, `une_revision_obsolete_refuse_edition_et_permutation`, `un_conflit_de_permutation_preserve_lordre_exterieur` | [Parcours persistés](../../tests/f2_documentation.rs) |
 | F0 / F2 | `un_echec_decriture_ne_confirme_pas_la_modification`, `un_changement_de_source_invalide_ledition_meme_a_revision_egale` | [Parcours persistés](../../tests/f2_documentation.rs) |

@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="fr">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Mystline — propositions de liste sans sections</title>
+<style>
+  * { box-sizing: border-box; }
+  body { margin: 0; padding: 28px; background: #edf0f5; color: #293247; font: 16px/1.6 system-ui, sans-serif; }
+  h1 { margin: 0; font-size: 26px; }
+  p { max-width: 950px; color: #68738a; }
+  main { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 24px; }
+  figure { margin: 0; }
+  img { display: block; width: 100%; height: auto; }
+  a { color: #4e54a5; }
+  figcaption { padding: 12px; }
+  @media (max-width: 1000px) { main { grid-template-columns: 1fr; } body { padding: 16px; } }
+</style>
+<h1>Variante A retenue — liste sans sections</h1>
+<p>Ordre demandé : <strong>Retard → aujourd'hui → demain → pas de date → plus tard.</strong>
+Maquette actualisée avant développement ; les règles sont décrites dans la SFG mise à jour.</p>
+<figure style="max-width:980px"><a href="a-triee.svg"><img src="a-triee.svg" alt="Variante A avec les tâches en retard, aujourd'hui, demain, sans date puis plus tard, dans une liste continue."></a><figcaption><a href="a-triee.png">Ouvrir le PNG actualisé</a></figcaption></figure>
+<h2>Propositions initiales</h2>
+<p>Les deux variantes initiales affichent les mêmes
+informations existantes : titre, case à cocher, tags, date prévue, deadline et indicateur
+de retard sur la tâche. L'ordre est illustratif. Les commandes dessinées ne sont pas actives.</p>
+<main>
+  <figure><a href="a-liste.svg"><img src="a-liste.svg" alt="Proposition A : une liste continue avec les métadonnées sous chaque titre et un badge En retard sur la tâche concernée."></a><figcaption><strong>A — Recommandée.</strong> Les indications restent près du titre. <a href="a-liste.png">Ouvrir le PNG</a></figcaption></figure>
+  <figure><a href="b-liste.svg"><img src="b-liste.svg" alt="Proposition B : la même liste continue avec les dates prévues et deadlines alignées dans deux colonnes."></a><figcaption><strong>B — Dates alignées.</strong> Comparaison plus rapide des dates. <a href="b-liste.png">Ouvrir le PNG</a></figcaption></figure>
+</main>
+</html>
