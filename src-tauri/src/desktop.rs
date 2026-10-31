@@ -272,6 +272,29 @@ pub async fn task_toggle(
 }
 
 #[tauri::command]
+pub async fn task_delete(
+    app: AppHandle,
+    source: SourceRevision,
+    position: usize,
+    request: ViewRequest,
+) -> Result<(), String> {
+    let command = {
+        let state = app.state::<Mutex<Resident>>();
+        let state = state.lock().map_err(|error| error.to_string())?;
+        if source != state.runtime.tasks.source_revision() {
+            return Err("La liste ou le fichier source a changé.".into());
+        }
+        tasks::delete(
+            &state.runtime.tasks.snapshot,
+            &request,
+            position,
+            Local::now().date_naive(),
+        )?
+    };
+    write_command(app, source, command).await
+}
+
+#[tauri::command]
 pub async fn task_reorder(
     app: AppHandle,
     source: SourceRevision,
@@ -831,6 +854,7 @@ pub fn run() -> Result<(), Box<dyn std::error::Error>> {
         task_update,
         task_repeat_preview,
         task_toggle,
+        task_delete,
         task_reorder,
         settings_source,
         settings_autostart,
@@ -857,6 +881,7 @@ pub fn run() -> Result<(), Box<dyn std::error::Error>> {
         task_update,
         task_repeat_preview,
         task_toggle,
+        task_delete,
         task_reorder,
         settings_source,
         settings_autostart,

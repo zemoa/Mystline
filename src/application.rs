@@ -65,6 +65,7 @@ pub enum TaskCommand {
     Update { position: usize, input: TaskInput },
     Complete { position: usize, today: NaiveDate },
     Reopen { position: usize },
+    Delete { position: usize },
     Reorder { from: usize, to: usize },
 }
 
@@ -75,6 +76,7 @@ impl TaskCommand {
             Self::Update { .. } => "update",
             Self::Complete { .. } => "complete",
             Self::Reopen { .. } => "reopen",
+            Self::Delete { .. } => "delete",
             Self::Reorder { .. } => "reorder",
         }
     }
@@ -190,6 +192,25 @@ pub fn propose_task_change(
                 task.completed = false;
                 task.completed_date = None;
                 task.observed_completion = None;
+            }
+        }
+        TaskCommand::Delete { position } => {
+            let task = proposed
+                .tasks
+                .get(*position)
+                .ok_or(CreateTaskError::InvalidPosition)?;
+            let series = (!task.completed)
+                .then_some(task.occurrence)
+                .flatten()
+                .map(|id| id.series);
+            proposed.tasks.remove(*position);
+            // Arrêter la série évite de recréer la tâche depuis son historique.
+            if let Some(series) = series {
+                for task in &mut proposed.tasks {
+                    if task.occurrence.is_some_and(|id| id.series == series) {
+                        task.recurrence = None;
+                    }
+                }
             }
         }
         TaskCommand::Reorder { from, to } => {

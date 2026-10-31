@@ -126,3 +126,9 @@ Les tests utilisent des dates fixes, de vrais fichiers temporaires pour les parc
 - [Suivi du cadrage](../designs/taches-recurrentes/README.md).
 
 Ces maquettes sont des propositions visuelles, sans persistance. Elles ne valent pas validation des choix encore ouverts.
+
+## Suppression volontaire
+
+Depuis le panneau quotidien, supprimer une occurrence à faire arrête la série et
+conserve les occurrences réalisées. Supprimer une occurrence terminée ne retire
+pas la suivante. Voir [SFG §14.1](../SFG.md#141-suppression-volontaire).

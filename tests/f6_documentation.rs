@@ -452,3 +452,48 @@ fn une_edition_exterieure_dupliquee_ou_invalide_conserve_le_dernier_etat_valide(
         assert_eq!(f.text(), external);
     }
 }
+
+#[test]
+fn supprimer_la_suivante_arrete_la_serie_et_conserve_le_travail_realise() {
+    let mut f = Fixture::new();
+    f.create("Routine /p 2026-11-01 /r jour", "2026-11-01");
+    f.complete(0, "2026-11-01");
+    let revision = f.repo.snapshot().revision;
+    let snapshot = application::apply_task_command(
+        &mut f.repo,
+        revision,
+        &TaskCommand::Delete { position: 1 },
+    )
+    .unwrap();
+    assert_eq!(snapshot.tasks.len(), 1);
+    assert!(snapshot.tasks[0].completed);
+    assert!(snapshot.tasks[0].recurrence.is_none());
+    // Une nouvelle écriture et un redémarrage ne recréent pas la suivante.
+    f.create("Autre tâche", "2026-11-01");
+    f.restart("2026-11-02");
+    assert_eq!(f.repo.snapshot().tasks.len(), 2);
+}
+
+#[test]
+fn supprimer_refuse_une_revision_obsolete_et_ne_touche_pas_aux_autres_taches() {
+    let mut f = Fixture::new();
+    f.create("À supprimer", "2026-11-01");
+    let obsolete = f.repo.snapshot().revision;
+    f.create("À conserver", "2026-11-01");
+    let before = f.text();
+    assert!(
+        application::apply_task_command(
+            &mut f.repo,
+            obsolete,
+            &TaskCommand::Delete { position: 0 }
+        )
+        .is_err()
+    );
+    assert_eq!(f.text(), before);
+    let revision = f.repo.snapshot().revision;
+    application::apply_task_command(&mut f.repo, revision, &TaskCommand::Delete { position: 0 })
+        .unwrap();
+    f.restart("2026-11-01");
+    assert_eq!(f.repo.snapshot().tasks.len(), 1);
+    assert_eq!(f.repo.snapshot().tasks[0].title, "À conserver");
+}

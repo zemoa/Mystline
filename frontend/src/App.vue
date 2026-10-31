@@ -260,6 +260,14 @@ async function performToggle(row: Row, source: Source) {
   catch (cause) { if (activation === submittedActivation) error.value = String(cause) }
   finally { if (activation === submittedActivation) { pending.value = false; await refresh(); scrollSelection() } }
 }
+async function deleteTask(row: Row) {
+  if (!view.value || history.value || pending.value || view.value.busy || editor.value || adding.value || reopenConfirmation.value) return
+  const submittedActivation = activation
+  pending.value = true; error.value = ""
+  try { await invoke("task_delete", { source: view.value.source, position: row.position, request: request() }) }
+  catch (cause) { if (activation === submittedActivation) error.value = String(cause) }
+  finally { if (activation === submittedActivation) { pending.value = false; await refresh(); await focusList() } }
+}
 async function reorder(down: boolean) {
   const submittedActivation = activation
   if (!view.value || selected.value === null || history.value || pending.value || view.value.busy || editor.value || adding.value) return
@@ -305,6 +313,7 @@ function keydown(event: KeyboardEvent) {
     }
   } else if (event.key === "Enter" || event.key.toLowerCase() === "e") {
     const row = rows[at]; if (row) { event.preventDefault(); void beginEdit(row) }
+  } else if (event.key === "Delete" && rows[at]) { event.preventDefault(); void deleteTask(rows[at])
   } else if (event.key === " " && rows[at]) { event.preventDefault(); void toggleTask(rows[at]) }
 }
 async function setting(command: string, args: Record<string, unknown>, message: string) {
@@ -437,6 +446,7 @@ onUnmounted(() => { disposed = true; for (const stop of unlisteners) stop(); res
                 <span v-if="row.repeat" class="date">↻ {{ row.repeat }}</span>
               </div>
             </div>
+            <button v-if="!history" class="secondary" :disabled="pending || view?.busy || !!editor || adding || !!reopenConfirmation" :aria-label="'Supprimer : ' + row.title" :title="row.repeat && !row.completed ? 'Supprimer et arrêter les répétitions' : 'Supprimer la tâche'" @click.stop="deleteTask(row)">Supprimer</button>
             <button v-if="!history && !row.completed" class="edit-action" :aria-label="'Modifier : ' + row.title" @click="beginEdit(row)"><Icon name="edit" /></button>
           </article>
         </div>
@@ -445,7 +455,7 @@ onUnmounted(() => { disposed = true; for (const stop of unlisteners) stop(); res
           <button :disabled="pending || view?.busy || !canReorder(selectedTask, false)" :aria-label="'Monter : ' + selectedTask.title" @click="reorder(false)">↑ Monter</button>
           <button :disabled="pending || view?.busy || !canReorder(selectedTask, true)" :aria-label="'Descendre : ' + selectedTask.title" @click="reorder(true)">↓ Descendre</button>
         </div>
-        <footer><button v-if="!history" class="primary add-task" :disabled="adding || !!editor" @click="beginAdd"><Icon name="add" />Ajouter une tâche</button><span v-if="view?.busy" class="muted" role="status">Enregistrement…</span><span v-else class="muted">↑ ↓ naviguer · Espace cocher · F1 aide</span></footer>
+        <footer><button v-if="!history" class="primary add-task" :disabled="adding || !!editor" @click="beginAdd"><Icon name="add" />Ajouter une tâche</button><span v-if="view?.busy" class="muted" role="status">Enregistrement…</span><span v-else class="muted">↑ ↓ naviguer · Espace cocher · Suppr supprimer · F1 aide</span></footer>
         <button v-if="recovered.length" class="secondary recover-draft" :disabled="!canRecover" @click="recoverDraft">Récupérer une saisie non enregistrée</button>
       </template>
       <div v-else class="settings-body">

@@ -739,3 +739,32 @@ describe("tâches récurrentes F6", () => {
   })
 
 })
+
+
+describe('suppression des tâches', () => {
+  it('supprime par bouton avec la révision affichée et affiche les erreurs', async () => {
+    const app = await open('panel')
+    desktop.invoke.mockImplementation(async command => {
+      if (command === 'task_view') return taskView()
+      if (command === 'task_delete') throw new Error('Écriture impossible')
+    })
+    await app.get('[aria-label="Supprimer : Première"]').trigger('click')
+    await flushPromises()
+    expect(desktop.invoke).toHaveBeenCalledWith('task_delete', {
+      source: { generation: 2, revision: 7 }, position: 0,
+      request: { query: '', tag: null, history: false },
+    })
+    expect(app.text()).toContain('Écriture impossible')
+    expect(app.text()).toContain('Première')
+  })
+
+  it('Suppr agit sur la sélection mais pas dans un champ de saisie', async () => {
+    const app = await open('panel')
+    app.get('[role="list"]').element.focus()
+    key('Delete'); await flushPromises()
+    expect(desktop.invoke.mock.calls.filter(([command]) => command === 'task_delete')).toHaveLength(1)
+    key('Enter'); await flushPromises()
+    key('Delete'); await flushPromises()
+    expect(desktop.invoke.mock.calls.filter(([command]) => command === 'task_delete')).toHaveLength(1)
+  })
+})

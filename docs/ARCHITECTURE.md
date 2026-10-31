@@ -368,11 +368,11 @@ Historique calculé
 Purge éventuelle
 ```
 
-Hors MVP :
-
-- suppression quotidienne explicite.
-
-La suppression est traitée comme une opération de maintenance via la purge.
+La suppression quotidienne explicite passe par `TaskCommand::Delete` et le même
+commit atomique avec vérification de révision que les autres écritures. Elle retire
+la tâche du snapshot et du fichier. Pour une occurrence récurrente à faire, elle
+désactive aussi la récurrence des occurrences conservées de cette série afin
+d’empêcher sa régénération. L’historique reste consultatif.
 
 ---
 

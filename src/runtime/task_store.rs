@@ -288,7 +288,7 @@ mod tests {
                 TaskCommand::Create(_) => assert_eq!(store.snapshot.tasks[2].title, "Nouvelle"),
                 TaskCommand::Update { .. } => assert_eq!(store.snapshot.tasks[0].title, "Modifiée"),
                 TaskCommand::Complete { .. } => assert!(store.snapshot.tasks[0].completed),
-                TaskCommand::Reopen { .. } => unreachable!(),
+                TaskCommand::Reopen { .. } | TaskCommand::Delete { .. } => unreachable!(),
                 TaskCommand::Reorder { .. } => assert_eq!(store.snapshot.tasks[0].title, "B"),
             }
             assert_eq!(fs::read_to_string(&path).unwrap(), original);

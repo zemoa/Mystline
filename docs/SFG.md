@@ -445,6 +445,17 @@ Si l'application redémarre avant cette écriture, la date réelle du cochage ne
 
 ---
 
+# 14.1 Suppression volontaire
+
+Le bouton « Supprimer » de chaque ligne quotidienne et la touche Suppr sur la tâche
+sélectionnée retirent définitivement la tâche du fichier, sans la marquer terminée.
+Les tâches faites aujourd’hui peuvent aussi être supprimées. L’historique reste consultatif.
+Supprimer l’occurrence à faire d’une série arrête ses répétitions et conserve les
+occurrences déjà réalisées. Supprimer une occurrence terminée conserve la suivante.
+Les protections contre une liste obsolète et les erreurs d’écriture restent applicables.
+
+---
+
 # 15. Historique
 
 Une vue secondaire permet de consulter les tâches terminées.

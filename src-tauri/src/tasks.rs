@@ -245,6 +245,18 @@ pub fn toggle(
     })
 }
 
+pub fn delete(
+    snapshot: &Snapshot,
+    request: &ViewRequest,
+    position: usize,
+    today: NaiveDate,
+) -> Result<TaskCommand, String> {
+    if request.history || !panel(request, today).indices(snapshot).contains(&position) {
+        return Err("Cette tâche n'est pas modifiable dans cette vue.".into());
+    }
+    Ok(TaskCommand::Delete { position })
+}
+
 pub fn reorder(
     snapshot: &Snapshot,
     request: &ViewRequest,
