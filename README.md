@@ -9,8 +9,12 @@ Mystline est un gestionnaire de tâches personnel, local et minimaliste. Il vous
 - **Organisez à votre façon** : ajoutez une date prévue, une échéance ou des tags quand ils sont utiles. Réordonnez vos tâches pour définir vos priorités.
 - **Répétez sans ressaisir** : utilisez « Répéter… » ou `/r vendredi`, `/r 30j`, `/r jour`, `/r lundi,vendredi`, `/r mois:31`. Une seule occurrence reste à faire, sans accumulation des dates manquées.
 - **Retrouvez et suivez vos tâches** : recherchez par titre ou par tag, filtrez votre liste et consultez l'historique des tâches terminées.
+- **Retirez ce qui n'est plus utile** : supprimez une tâche avec le bouton « Supprimer » ou la touche Suppr. Supprimer la tâche à faire d'une série arrête ses répétitions et conserve les occurrences déjà réalisées.
 - **Restez concentré** : utilisez les principales actions au clavier, sans notifications ni méthode d'organisation imposée.
+- **Choisissez votre démarrage** : activez ou désactivez le lancement avec la session et l'ouverture de la liste au démarrage depuis les paramètres.
 
 Mystline fonctionne sur Windows et Linux. Vos tâches restent sur votre machine, dans un fichier Markdown que vous pouvez aussi lire et modifier avec vos outils habituels. Aucun compte ni service cloud n'est nécessaire, et vous pouvez gérer vos tâches hors connexion.
+
+Sur Windows et Linux AppImage, les mises à jour sont téléchargées automatiquement lorsqu'une connexion est disponible. Vous choisissez quand les installer et redémarrer depuis les paramètres. Le paquet Linux `.deb` se met à jour par réinstallation.
 
 Pour découvrir les règles fonctionnelles en détail, consultez la [spécification fonctionnelle](docs/SFG.md).
