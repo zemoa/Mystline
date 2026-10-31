@@ -412,8 +412,11 @@ onUnmounted(() => { disposed = true; for (const stop of unlisteners) stop(); res
         </section>
         <form v-if="adding" class="composer" @submit.prevent="submitCreate">
           <label for='capture'>Ajouter une tâche</label><input id='capture' ref="captureInput" v-model="draft" :readonly="pending" placeholder="Une tâche, simplement" autocomplete="off" />
-          <SyntaxHelp v-if="help" /><p class="muted">Entrée pour ajouter · Échap pour annuler · F1 pour l’aide</p><button class="primary" :disabled="pending">{{ pending ? "Enregistrement…" : "Ajouter" }}</button>
-          <button type="button" class="secondary" :disabled="pending" @click="repeatForm = !repeatForm">Répéter…</button>
+          <SyntaxHelp v-if="help" /><p class="muted">Entrée pour ajouter · Échap pour annuler · F1 pour l’aide</p>
+          <div class="form-actions">
+            <button class="primary" :disabled="pending">{{ pending ? "Enregistrement…" : "Ajouter" }}</button>
+            <button type="button" class="secondary" :disabled="pending" @click="repeatForm = !repeatForm">Répéter…</button>
+          </div>
         </form>
         <RepeatForm v-if="repeatForm && adding" :draft="draft" @apply="applyRepeat" @cancel="closeRepeat" />
         <section v-if="reopenConfirmation" role="dialog" aria-label="Confirmer la réouverture" class="repeat-form"><p>{{ reopenConfirmation.row.reopenWarning }}</p><div class="form-actions"><button class="secondary" @click="reopenConfirmation = null">Annuler la réouverture</button><button class="primary" @click="confirmReopen">Réouvrir et retirer la suivante</button></div></section>
