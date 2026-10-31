@@ -1,0 +1,58 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1120" height="840" viewBox="0 0 1120 840">
+<style>text{font-family:Arial,sans-serif;fill:#2d364b}.muted{fill:#697894;font-size:14px}.label{font-size:13px;fill:#5350aa}.title{font-size:24px;font-weight:700}.body{font-size:16px}.white{fill:white}.choice{font-size:14px;fill:#5350aa}</style>
+<rect width="1120" height="840" fill="#edf0f6"/>
+<text x="32" y="35" class="label">MYSTLINE / FORMULAIRE RÉPÉTER / QUATRE VARIANTES PROPOSÉES</text>
+<text x="32" y="76" class="title">Choisir le rythme et vérifier les prochaines dates.</text>
+<text x="32" y="105" class="muted">Exemples au 31 octobre 2026 · aperçu du calendrier, sans création des occurrences futures</text>
+<rect x="32" y="130" width="516" height="269" rx="12" fill="#f7f8fc" stroke="#dce2f0"/>
+<text x="56" y="166" class="title">Tous les jours</text>
+<text x="56" y="200" class="muted">Fréquence</text>
+<rect x="56" y="211" width="468" height="39" rx="6" fill="white" stroke="#aaaacf"/>
+<text x="70" y="237" class="body">Tous les jours</text><text x="496" y="237" class="label">⌄</text>
+<text x="56" y="281" class="body">Première date : 31 octobre 2026</text>
+<text x="56" y="314" class="label">31 oct. → 1er nov. → 2 nov.</text>
+<text x="56" y="345" class="muted">Week-ends compris</text>
+<text x="56" y="376" class="label">Commande : /r jour</text>
+<rect x="572" y="130" width="516" height="269" rx="12" fill="#f7f8fc" stroke="#dce2f0"/>
+<text x="596" y="166" class="title">Chaque semaine</text>
+<text x="596" y="200" class="muted">Choisir un ou plusieurs jours</text>
+<rect x="596" y="215" width="48" height="35" rx="6" fill="#5552ad"/>
+<text x="605" y="238" class="white">Lun</text>
+<rect x="652" y="215" width="48" height="35" rx="6" fill="white" stroke="#dce2f0"/>
+<text x="661" y="238" class="choice">Mar</text>
+<rect x="708" y="215" width="48" height="35" rx="6" fill="white" stroke="#dce2f0"/>
+<text x="717" y="238" class="choice">Mer</text>
+<rect x="764" y="215" width="48" height="35" rx="6" fill="white" stroke="#dce2f0"/>
+<text x="774" y="238" class="choice">Jeu</text>
+<rect x="820" y="215" width="48" height="35" rx="6" fill="#5552ad"/>
+<text x="828" y="238" class="white">Ven</text>
+<rect x="876" y="215" width="48" height="35" rx="6" fill="white" stroke="#dce2f0"/>
+<text x="884" y="238" class="choice">Sam</text>
+<rect x="932" y="215" width="48" height="35" rx="6" fill="white" stroke="#dce2f0"/>
+<text x="940" y="238" class="choice">Dim</text>
+<text x="596" y="281" class="body">Première date : lundi 2 novembre 2026</text>
+<text x="596" y="314" class="label">Lun. 2 nov. → ven. 6 nov. → lun. 9 nov.</text>
+<text x="596" y="345" class="muted">Une seule occurrence à faire, même avec deux jours</text>
+<text x="596" y="376" class="label">Commande : /r lundi,vendredi</text>
+<rect x="32" y="419" width="516" height="269" rx="12" fill="#f7f8fc" stroke="#dce2f0"/>
+<text x="56" y="455" class="title">Tous les N jours</text>
+<text x="56" y="489" class="muted">Intervalle</text>
+<rect x="56" y="500" width="80" height="39" rx="6" fill="white" stroke="#aaaacf"/>
+<text x="70" y="526" class="body">30</text><text x="150" y="526" class="body">jours</text>
+<text x="56" y="570" class="body">Première date : 1er novembre 2026</text>
+<text x="56" y="603" class="label">1er nov. → 1er déc. → 31 déc.</text>
+<text x="56" y="634" class="muted">Le calendrier reste fixe si la tâche est cochée en retard</text>
+<text x="56" y="665" class="label">Commande : /r 30j</text>
+<rect x="572" y="419" width="516" height="269" rx="12" fill="#f7f8fc" stroke="#dce2f0"/>
+<text x="596" y="455" class="title">Chaque mois</text>
+<text x="596" y="489" class="muted">Jour du mois</text>
+<rect x="596" y="500" width="80" height="39" rx="6" fill="white" stroke="#aaaacf"/>
+<text x="610" y="526" class="body">31</text>
+<text x="596" y="570" class="body">Première date : 31 octobre 2026</text>
+<text x="596" y="603" class="label">31 oct. → 30 nov. → 31 déc.</text>
+<text x="596" y="634" class="muted">Dernier jour si le 31 n’existe pas, puis retour au 31</text>
+<text x="596" y="665" class="label">Commande : /r mois:31</text>
+<text x="32" y="729" class="body">Commun aux quatre variantes : première date modifiable et aperçu avant enregistrement.</text>
+<text x="32" y="760" class="muted">En édition : « Ne plus répéter » conserve la tâche à faire et ses dates comme tâche ponctuelle.</text>
+<text x="32" y="800" class="label">Règles et syntaxe validées · présentation proposée · fonctionnalité non implémentée</text>
+</svg>

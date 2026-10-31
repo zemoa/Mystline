@@ -12,3 +12,9 @@ Ce découpage définit le périmètre des features avant la rédaction de leurs 
 | [**F5-consolider-interface**](F5-consolider-interface.md) | **Consolider l'interface** | Appliquer à toutes les surfaces un design system clair et compact conforme à la maquette, sans modifier les parcours métier existants. |
 
 Les exigences transversales, notamment l'utilisation principalement au clavier, l'absence de doublons dans la liste et l'absence de notifications, seront précisées dans les features concernées.
+
+## Évolution après le MVP
+
+| ID | Feature | Périmètre et statut |
+| --- | --- | --- |
+| [**F6-gerer-les-taches-recurrentes**](F6-gerer-les-taches-recurrentes.md) | **Gérer les tâches récurrentes** | Calendrier fixe, une seule occurrence à faire, commande et formulaire, cumul des dates et tags, report, cochage et arrêt. Règles métier et syntaxe des commandes validées le 31 octobre 2026 ; non implémenté. Maquettes et compléments de parcours proposés. |

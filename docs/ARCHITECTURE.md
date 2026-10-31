@@ -6,6 +6,8 @@
 > Il couvre les principes, les frontières, les flux principaux et les responsabilités.
 > Certains choix d'implémentation détaillés (crates exactes, délais de debounce, etc.) ne sont pas figés ici.
 
+> Évolution F6 : le [cadrage fonctionnel de la récurrence](features/F6-gerer-les-taches-recurrentes.md) est validé, sans implémentation ni nouveau format de stockage décidé. La conception technique devra préciser le lien entre occurrences, la sauvegarde cohérente du cochage et de la suivante et le traitement des éditions extérieures. Le modèle actuellement décrit ici, notamment l'absence d'identifiant persistant et de réécriture spontanée, n'est pas modifié par cette spécification.
+
 ---
 
 ## 1. Objectifs architecturaux

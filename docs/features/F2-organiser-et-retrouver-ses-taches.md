@@ -2,6 +2,8 @@
 
 > Migration Tauri/Vue : ces règles restent la référence fonctionnelle. Le portage F0–F5 et sa validation sont suivis dans [la migration](../migration-tauri-vue.md).
 
+> Évolution non implémentée : [F6](F6-gerer-les-taches-recurrentes.md) complète l'édition pour les tâches récurrentes : report ponctuel de la date prévue, modification du titre, des tags et des règles pour l'occurrence à faire et les suivantes. La syntaxe de la commande de récurrence est validée ; les commandes actuellement implémentées restent celles de F2.
+
 ## Objectif et périmètre
 
 Permettre d'ajouter facultativement du contexte aux tâches, de préparer le prochain jour ouvré et de retrouver immédiatement la tâche recherchée. Cette feature possède la syntaxe des métadonnées, l'édition, le tri de la liste sans sections, l'ordre manuel, les tags, la recherche, les filtres et l'aide à la saisie. La création avec un simple titre et l'ouverture du panneau restent en F1 ; la complétion et l'historique relèvent de F3.

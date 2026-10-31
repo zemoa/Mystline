@@ -1,0 +1,43 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1120" height="690" viewBox="0 0 1120 690">
+<style>text{font-family:Arial,sans-serif;fill:#2d364b}.muted{fill:#697894;font-size:14px}.label{font-size:13px;fill:#5350aa}.title{font-size:25px;font-weight:700}.body{font-size:16px}.small{font-size:13px}.white{fill:white}</style>
+<rect width="1120" height="690" fill="#edf0f6"/>
+<text x="36" y="36" class="label">MYSTLINE / TÂCHES RÉCURRENTES / PROPOSITION À DISCUTER</text>
+<text x="36" y="76" class="title">Définir une répétition, la retrouver sur la tâche.</text>
+<text x="36" y="106" class="muted">Exemples fictifs · règles et syntaxe validées · présentation proposée</text>
+<rect x="36" y="140" width="506" height="455" rx="14" fill="#f7f8fc" stroke="#dce2f0"/>
+<text x="60" y="177" class="label">A · AJOUT OU ÉDITION</text>
+<text x="60" y="217" class="title">Ajouter une tâche</text>
+<rect x="60" y="241" width="458" height="49" rx="7" fill="white" stroke="#5552ad"/>
+<text x="74" y="271" class="body">Faire ma revue /r vendredi #perso</text>
+<rect x="60" y="306" width="458" height="116" rx="8" fill="#e9e9fa"/>
+<text x="76" y="334" class="body">↻ Tous les vendredis</text>
+<text x="76" y="362" class="muted">Première date prévue : vendredi 6 novembre</text>
+<text x="76" y="393" class="label">Aperçu de la règle avant enregistrement</text>
+<text x="60" y="454" class="muted">Autre exemple de saisie proposé :</text>
+<text x="60" y="484" class="body">Nettoyer le filtre /r 30j</text>
+<text x="60" y="515" class="muted">La première date est proposée et reste modifiable.</text>
+<rect x="60" y="544" width="140" height="32" rx="5" fill="#5552ad"/>
+<text x="78" y="565" class="small white">Entrée · Ajouter</text>
+<text x="218" y="565" class="muted">Échap · Annuler</text>
+<rect x="566" y="140" width="518" height="455" rx="14" fill="#f7f8fc" stroke="#dce2f0"/>
+<text x="590" y="177" class="label">B · LISTE QUOTIDIENNE</text>
+<text x="590" y="217" class="title">Mes tâches</text>
+<text x="590" y="246" class="muted">Vendredi 6 novembre 2026</text>
+<path d="M590 264H1060" stroke="#dce2f0"/>
+<rect x="580" y="279" width="490" height="90" rx="7" fill="#e9e9fa"/>
+<rect x="594" y="296" width="18" height="18" rx="4" fill="white" stroke="#9daac7"/>
+<text x="625" y="311" class="body">Faire ma revue</text>
+<text x="625" y="337" class="muted">#perso · Prévu aujourd’hui</text>
+<text x="625" y="358" class="label">↻ Tous les vendredis</text>
+<rect x="594" y="390" width="18" height="18" rx="4" fill="white" stroke="#9daac7"/>
+<text x="625" y="405" class="body">Appeler le garage</text>
+<path d="M625 430H1060" stroke="#dce2f0"/>
+<rect x="594" y="451" width="18" height="18" rx="4" fill="white" stroke="#9daac7"/>
+<text x="625" y="466" class="body">Nettoyer le filtre</text>
+<text x="625" y="493" class="muted">Prévu le 20 novembre</text>
+<text x="625" y="515" class="label">↻ Tous les 30 jours</text>
+<path d="M590 537H1060" stroke="#dce2f0"/>
+<text x="590" y="565" class="muted">Liste continue · répétition indiquée sous le titre</text>
+<text x="36" y="634" class="body">Calendrier fixe · une seule occurrence à faire · commande ou formulaire.</text>
+<text x="36" y="660" class="muted">Après cochage, la suivante apparaît immédiatement ; voir la maquette du cycle.</text>
+</svg>

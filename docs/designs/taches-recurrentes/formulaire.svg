@@ -1,0 +1,42 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1060" height="710" viewBox="0 0 1060 710">
+<style>text{font-family:Arial,sans-serif;fill:#2d364b}.muted{fill:#697894;font-size:14px}.label{font-size:13px;fill:#5350aa}.title{font-size:24px;font-weight:700}.body{font-size:16px}.white{fill:white}.bold{font-weight:700}</style>
+<rect width="1060" height="710" fill="#edf0f6"/>
+<text x="32" y="35" class="label">MYSTLINE / RÉCURRENCE / FORMULAIRE PROPOSÉ · À VALIDER</text>
+<text x="32" y="76" class="title">Deux façons de définir le même calendrier.</text>
+<rect x="32" y="108" width="482" height="501" rx="12" fill="#f7f8fc" stroke="#dce2f0"/>
+<text x="56" y="146" class="title">Répéter la tâche</text>
+<text x="56" y="179" class="body">Faire ma revue</text>
+<text x="56" y="220" class="muted">Fréquence</text>
+<rect x="56" y="233" width="434" height="44" rx="6" fill="white" stroke="#aaaacf"/>
+<text x="70" y="261" class="body">Chaque semaine</text><text x="462" y="261" class="label">⌄</text>
+<text x="56" y="311" class="muted">Jour de la semaine</text>
+<rect x="56" y="324" width="434" height="44" rx="6" fill="white" stroke="#aaaacf"/>
+<text x="70" y="352" class="body">Vendredi</text><text x="462" y="352" class="label">⌄</text>
+<text x="56" y="401" class="muted">Première occurrence</text>
+<rect x="56" y="414" width="434" height="44" rx="6" fill="white" stroke="#aaaacf"/>
+<text x="70" y="442" class="body">6 novembre 2026</text>
+<text x="56" y="491" class="label">Puis les 13, 20 et 27 novembre…</text>
+<text x="56" y="522" class="muted">Équivalent : /p 2026-11-06 /r vendredi</text>
+<rect x="56" y="551" width="220" height="34" rx="5" fill="#5552ad"/>
+<text x="77" y="574" class="body white">Appliquer la répétition</text>
+<text x="302" y="574" class="muted">Annuler</text>
+<rect x="538" y="108" width="490" height="501" rx="12" fill="#f7f8fc" stroke="#dce2f0"/>
+<text x="562" y="146" class="title">Répéter la tâche</text>
+<text x="562" y="179" class="body">Nettoyer le filtre</text>
+<text x="562" y="220" class="muted">Fréquence</text>
+<rect x="562" y="233" width="442" height="44" rx="6" fill="white" stroke="#aaaacf"/>
+<text x="576" y="261" class="body">Tous les N jours</text><text x="976" y="261" class="label">⌄</text>
+<text x="562" y="311" class="muted">Intervalle</text>
+<rect x="562" y="324" width="100" height="44" rx="6" fill="white" stroke="#aaaacf"/>
+<text x="576" y="352" class="body">30</text><text x="680" y="352" class="body">jours</text>
+<text x="562" y="401" class="muted">Première occurrence</text>
+<rect x="562" y="414" width="442" height="44" rx="6" fill="white" stroke="#aaaacf"/>
+<text x="576" y="442" class="body">1er novembre 2026</text>
+<text x="562" y="491" class="label">Puis le 1er décembre, le 31 décembre…</text>
+<text x="562" y="522" class="muted">Équivalent : /p 2026-11-01 /r 30j</text>
+<rect x="562" y="551" width="220" height="34" rx="5" fill="#5552ad"/>
+<text x="583" y="574" class="body white">Appliquer la répétition</text>
+<text x="808" y="574" class="muted">Annuler</text>
+<text x="32" y="650" class="body">Calendrier fixe · une seule occurrence à faire · saisie rapide et formulaire</text>
+<text x="32" y="679" class="muted">30 jours ne signifie pas chaque mois : les dates restent espacées de 30 jours calendaires.</text>
+</svg>

@@ -2,6 +2,8 @@
 
 > Migration Tauri/Vue : ces règles restent la référence fonctionnelle. Le portage F0–F5 et sa validation sont suivis dans [la migration](../migration-tauri-vue.md).
 
+> Évolution non implémentée : [F6](F6-gerer-les-taches-recurrentes.md) complète ces règles pour la récurrence. Cocher prépare une seule occurrence suivante ; décocher retire cette suivante encore à faire. Une ancienne occurrence dont la suivante est déjà terminée ne peut plus être rouverte. Ces exceptions sont spécifiées pour F6 et ne décrivent pas une fonctionnalité déjà livrée.
+
 ## Objectif et périmètre
 
 Permettre de cocher une tâche depuis le panneau, de voir ce qui a été accompli dans la journée et de consulter ultérieurement les tâches terminées. F3 possède exclusivement le changement d'état, l'affichage des tâches terminées du jour et l'historique ; F2 conserve la responsabilité du classement des tâches à faire, de leur édition et de leur ordre.

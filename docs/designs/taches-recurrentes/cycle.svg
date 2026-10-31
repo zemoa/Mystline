@@ -1,0 +1,27 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1020" height="690" viewBox="0 0 1020 690">
+<style>text{font-family:Arial,sans-serif;fill:#2d364b}.muted{fill:#697894;font-size:14px}.label{font-size:13px;fill:#5350aa}.title{font-size:24px;font-weight:700}.body{font-size:16px}.done{fill:#697894;text-decoration:line-through}</style>
+<rect width="1020" height="690" fill="#edf0f6"/>
+<text x="32" y="35" class="label">MYSTLINE / RÉCURRENCE / PARCOURS VALIDÉ · PRÉSENTATION PROPOSÉE</text>
+<text x="32" y="76" class="title">Une ligne par occurrence, toutes les informations ensemble.</text>
+<rect x="32" y="106" width="956" height="191" rx="12" fill="#f7f8fc" stroke="#dce2f0"/>
+<text x="56" y="143" class="label">AVANT COCHAGE · VENDREDI 6 NOVEMBRE 2026</text>
+<rect x="56" y="165" width="18" height="18" rx="4" fill="white" stroke="#9daac7"/>
+<text x="90" y="181" class="body">Faire ma revue</text>
+<text x="90" y="211" class="muted">#perso · Prévu aujourd’hui · 6 nov.</text>
+<text x="90" y="240" class="muted">Échéance lundi 9 nov.</text>
+<text x="90" y="269" class="label">↻ Tous les vendredis</text>
+<rect x="32" y="321" width="956" height="283" rx="12" fill="#f7f8fc" stroke="#dce2f0"/>
+<text x="56" y="359" class="label">APRÈS COCHAGE · LE MÊME JOUR</text>
+<rect x="56" y="380" width="18" height="18" rx="4" fill="#5552ad"/>
+<path d="M60 389L64 393L71 384" fill="none" stroke="white" stroke-width="2"/>
+<text x="90" y="396" class="body done">Faire ma revue</text>
+<text x="90" y="425" class="muted">#perso · Prévu le 6 nov. · Échéance le 9 nov.</text>
+<text x="90" y="453" class="muted">Terminée aujourd’hui</text>
+<path d="M90 471H958" stroke="#dce2f0"/>
+<rect x="56" y="490" width="18" height="18" rx="4" fill="white" stroke="#9daac7"/>
+<text x="90" y="506" class="body">Faire ma revue</text>
+<text x="90" y="535" class="muted">#perso · Prévu le 13 nov. · Échéance le 16 nov.</text>
+<text x="90" y="565" class="label">↻ Tous les vendredis</text>
+<text x="32" y="643" class="body">Une occurrence terminée + une seule occurrence à faire : deux réalisations distinctes.</text>
+<text x="32" y="672" class="muted">Extrait de liste fictif · ordre relatif aux autres tâches régi par le tri actuel de Mystline</text>
+</svg>

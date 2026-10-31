@@ -2,6 +2,8 @@
 
 > Migration Tauri/Vue : ces règles restent la référence fonctionnelle. Le portage F0–F5 et sa validation sont suivis dans [la migration](migration-tauri-vue.md).
 
+> Évolution F6 : les règles métier et la syntaxe des commandes des [tâches récurrentes](features/F6-gerer-les-taches-recurrentes.md) ont été validées le 31 octobre 2026. Cette évolution est spécifiée mais non implémentée ; les maquettes et les compléments de parcours restent proposés.
+
 > Présentation validée le 26 octobre 2026 : une liste sans sections, triée par
 > **Retard → aujourd'hui → demain → pas de date → plus tard**. Le retard est indiqué
 > sur la tâche et une échéance demain ressort en ambre. La [maquette A validée](designs/liste-sans-sections/README.md)
@@ -587,9 +589,21 @@ Le système ne doit pas multiplier les alertes ou les demandes de confirmation.
 
 # 23. Récurrence
 
-Les tâches récurrentes ne font pas partie du MVP.
+La récurrence est une évolution du MVP, cadrée dans [F6](features/F6-gerer-les-taches-recurrentes.md) et non encore implémentée. Les tâches ponctuelles restent possibles.
 
-Toutes les tâches sont ponctuelles.
+Le périmètre fonctionnel validé permet de définir une répétition par commande ou formulaire : tous les jours, chaque semaine avec un ou plusieurs jours, tous les N jours ou chaque mois. Le calendrier est fixe, indépendant du jour de réalisation. Un jour mensuel absent est remplacé par le dernier jour du mois, sans changer le jour demandé pour les mois suivants.
+
+Une série possède une seule occurrence à faire. Les dates manquées ne s'accumulent pas. Au cochage, l'occurrence terminée reste visible aujourd'hui selon §14 et la prochaine occurrence apparaît immédiatement, à la première date du calendrier après le jour de réalisation et après la date théorique de l'occurrence réalisée. Cela couvre aussi le cochage anticipé.
+
+Date prévue, deadline, tags et récurrence se cumulent sur une occurrence unique. Les règles de classement restent celles du §9. Une deadline conserve son écart en jours avec la date théorique de chaque occurrence ; reporter ponctuellement la date prévue conserve la deadline et le calendrier de la série.
+
+Le titre et les tags modifiés concernent l'occurrence à faire et les suivantes. Modifier la fréquence ou la règle de deadline concerne également l'occurrence à faire et les suivantes, avec aperçu avant validation. « Ne plus répéter » conserve l'occurrence à faire comme tâche ponctuelle. Aucune fin programmée n'est prévue dans cette version.
+
+Pour une tâche récurrente, décocher la dernière occurrence terminée encore visible rouvre celle-ci et retire la suivante à faire. Si cette suivante est déjà terminée, l'ancienne ne peut plus être rouverte. Cette règle complète le §14 ; l'historique reste consultatif.
+
+F6 détaille les règles, les scénarios de recette et les propositions d'interface. Le traitement des éditions extérieures récurrentes reste à instruire sans remettre implicitement en cause les protections du fichier existantes.
+
+Les formes de commande validées pour cette évolution sont `/r jour`, `/r vendredi` (ou un autre jour), `/r lundi,vendredi` (plusieurs jours), `/r 30j` (intervalle en jours) et `/r mois:31` (jour du mois). Elles ne sont pas encore implémentées.
 
 ---
 
@@ -610,7 +624,7 @@ Sont volontairement exclues :
 * priorités Haute / Moyenne / Basse ;
 * pièces jointes ;
 * notes longues ;
-* tâches récurrentes ;
+* tâches récurrentes dans le MVP initial (évolution F6 spécifiée au §23) ;
 * collaboration ;
 * dépendances entre tâches ;
 * intégration email ou messagerie.
