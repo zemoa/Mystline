@@ -126,6 +126,9 @@ impl TaskRepository {
             self.reload()?;
             return Err(RepositoryError::Changed);
         }
+        crate::recurrence::generate_missing(&mut tasks).map_err(|reason| {
+            RepositoryError::Io(io::Error::new(io::ErrorKind::InvalidData, reason))
+        })?;
         for task in &mut tasks {
             if task.completed {
                 task.completed_date = task.effective_completion_date();
@@ -147,6 +150,7 @@ impl TaskRepository {
 
 #[derive(PartialEq, Eq, Hash)]
 struct UndatedTask<'a> {
+    occurrence: Option<crate::recurrence::OccurrenceId>,
     title: &'a str,
     planned: Option<NaiveDate>,
     deadline: Option<NaiveDate>,
@@ -156,6 +160,7 @@ struct UndatedTask<'a> {
 impl<'a> UndatedTask<'a> {
     fn from(task: &'a Task) -> Option<Self> {
         (task.completed && task.completed_date.is_none()).then_some(Self {
+            occurrence: task.occurrence,
             title: &task.title,
             planned: task.planned,
             deadline: task.deadline,

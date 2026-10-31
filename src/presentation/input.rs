@@ -5,10 +5,16 @@ use crate::{
 use chrono::{Datelike, Days, NaiveDate};
 use thiserror::Error;
 
-pub const HELP: &str = " /p <date> — prévoir une tâche\n /d <date> — définir une deadline\n #tag — ajouter du contexte (plusieurs tags possibles)\n Dates : YYYY-MM-DD, aujourd'hui, demain, lundi à dimanche\n \\#tag et \\/p — conserver ces tokens dans le titre\n \\\\ — écrire un antislash littéral\n F1 : afficher / fermer l'aide · Échap : fermer d'abord l'aide";
+pub const HELP: &str = " /p <date> — prévoir une tâche\n /d <date> — définir une deadline\n /r jour, vendredi, lundi,vendredi, 30j, mois:31 — répéter\n Répéter… — ouvrir le formulaire et son aperçu\n #tag — ajouter du contexte (plusieurs tags possibles)\n Dates : YYYY-MM-DD, aujourd'hui, demain, lundi à dimanche\n \\#tag, \\/p et \\/r — conserver ces tokens dans le titre\n \\\\ — écrire un antislash littéral\n F1 : afficher / fermer l'aide · Échap : fermer d'abord l'aide";
 
 #[derive(Debug, Error, PartialEq, Eq)]
 pub enum InputError {
+    #[error("La première date n'est pas compatible avec la répétition choisie")]
+    IncompatibleRepeatDate,
+    #[error(
+        "Répétition invalide : utiliser jour, lundi,vendredi, 30j ou mois:31 ; une seule commande /r"
+    )]
+    InvalidRepeat,
     #[error("Saisir un titre, en plus des commandes éventuelles")]
     EmptyTitle,
     #[error(
@@ -23,6 +29,20 @@ pub enum InputError {
 
 /// La date est fournie au moment de la validation, jamais à l'ouverture du champ.
 pub fn parse_input(raw: &str, today: NaiveDate) -> Result<TaskInput, InputError> {
+    let mut input = parse_edit_input(raw, today)?;
+    if let Some(rule) = &input.repeat {
+        if input.planned.is_none() {
+            input.planned = Some(rule.first(today).ok_or(InputError::InvalidRepeat)?);
+        }
+        if !rule.compatible(input.planned.ok_or(InputError::InvalidRepeat)?) {
+            return Err(InputError::IncompatibleRepeatDate);
+        }
+    }
+    Ok(input)
+}
+
+/// En édition, /p peut être un report hors calendrier ; l'application connaît la règle précédente.
+pub fn parse_edit_input(raw: &str, today: NaiveDate) -> Result<TaskInput, InputError> {
     let mut input = TaskInput::default();
     let mut tokens = raw.split_whitespace();
     let mut offset = 0;
@@ -31,6 +51,20 @@ pub fn parse_input(raw: &str, today: NaiveDate) -> Result<TaskInput, InputError>
         let start = offset + raw[offset..].find(token).expect("token dans la saisie");
         offset = start + token.len();
         match token {
+            "/r" => {
+                if input.repeat.is_some() {
+                    return Err(InputError::InvalidRepeat);
+                }
+                let value = tokens.next().ok_or(InputError::InvalidRepeat)?;
+                offset += raw[offset..]
+                    .find(value)
+                    .expect("répétition dans la saisie")
+                    + value.len();
+                input.repeat = Some(
+                    crate::recurrence::RepeatRule::parse(value).ok_or(InputError::InvalidRepeat)?,
+                );
+                previous_end = None;
+            }
             "/p" | "/d" => {
                 let slot = if token == "/p" {
                     &mut input.planned
@@ -112,7 +146,7 @@ fn decode_title(token: &str) -> String {
     let mut result = String::new();
     // Only a leading backslash escapes a command token; doubled backslashes
     // encode literal backslashes anywhere (including in Windows paths).
-    if token.starts_with("\\#") || token == "\\/p" || token == "\\/d" {
+    if token.starts_with("\\#") || matches!(token, "\\/p" | "\\/d" | "\\/r") {
         chars.next();
     }
     while let Some(c) = chars.next() {
@@ -128,7 +162,7 @@ pub fn format_edit(task: &Task) -> String {
     let mut text = String::new();
     // Keep whitespace intact while escaping tokens which the input parser owns.
     for token in task.title.split_inclusive(char::is_whitespace) {
-        if token.starts_with('#') || token.trim_end() == "/p" || token.trim_end() == "/d" {
+        if token.starts_with('#') || matches!(token.trim_end(), "/p" | "/d" | "/r") {
             text.push('\\');
         }
         text.push_str(&token.replace('\\', "\\\\"));
@@ -138,6 +172,9 @@ pub fn format_edit(task: &Task) -> String {
     }
     if let Some(date) = task.deadline {
         text.push_str(&format!(" /d {date}"));
+    }
+    if let Some(recurrence) = &task.recurrence {
+        text.push_str(&format!(" /r {}", recurrence.rule));
     }
     for tag in &task.tags {
         text.push_str(&format!(" #{tag}"));
@@ -317,6 +354,8 @@ mod tests {
             "fin\\",
         ] {
             let task = Task {
+                recurrence: None,
+                occurrence: None,
                 title: title.into(),
                 planned: Some(date(9)),
                 deadline: Some(date(12)),

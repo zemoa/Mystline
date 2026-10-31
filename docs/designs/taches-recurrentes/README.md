@@ -1,6 +1,6 @@
 # Tâches récurrentes — exploration fonctionnelle
 
-Statut : règles métier et syntaxe des commandes validées le 31 octobre 2026 ; maquettes et compléments de parcours proposés. Évolution non implémentée. La référence fonctionnelle est désormais [F6](../../features/F6-gerer-les-taches-recurrentes.md), synthétisée dans la [SFG §23](../../SFG.md).
+Statut : règles métier et syntaxe des commandes validées le 31 octobre 2026 ; maquettes et compléments de parcours proposés. L’implémentation et la recette automatisée sont désormais décrites dans F6 ; ces SVG restent des explorations visuelles. La référence fonctionnelle est désormais [F6](../../features/F6-gerer-les-taches-recurrentes.md), synthétisée dans la [SFG §23](../../SFG.md).
 
 ## Besoin exprimé
 
@@ -10,7 +10,7 @@ Pouvoir ajouter une tâche récurrente, par exemple tous les vendredis ou tous l
 
 [Voir la maquette SVG](proposition.svg).
 
-La maquette reprend la liste continue et la palette Indigo de la présentation actuelle. Elle propose un libellé de répétition sous le titre et un aperçu de la règle pendant la saisie. Les commandes `/r vendredi` et `/r 30j` sont validées, sans modification du parseur ni de l'application à ce stade.
+La maquette reprend la liste continue et la palette Indigo de la présentation actuelle. Elle propose un libellé de répétition sous le titre et un aperçu de la règle pendant la saisie. Les commandes `/r vendredi` et `/r 30j` sont maintenant implémentées ; cette planche conserve la proposition visuelle initiale.
 
 ## Lecture des maquettes
 
@@ -51,6 +51,6 @@ Le formulaire propose « Chaque semaine » avec un jour ou « Tous les N jours �
 
 Le cycle après cochage et l'absence de rattrapage sont validés. La présentation du formulaire reste une proposition ; la [planche des fréquences](frequences.svg) complète les exemples initiaux. Tant qu'elle n'est pas cochée, l'occurrence en attente reste la seule à faire ; un changement de jour n'en crée pas d'autre.
 
-La [spécification F6](../../features/F6-gerer-les-taches-recurrentes.md) rassemble les règles et la syntaxe validées, les propositions de parcours et les points à instruire avant développement.
+La [spécification F6](../../features/F6-gerer-les-taches-recurrentes.md) rassemble les règles et la syntaxe validées, les propositions de parcours et les décisions d’implémentation et la validation native restante.
 
 [Troisième maquette : métadonnées cumulées et résultat après cochage](cycle.svg). Les informations validées sont illustrées sur une occurrence unique ; la ligne terminée et la prochaine occurrence correspondent à deux réalisations distinctes.

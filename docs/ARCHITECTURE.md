@@ -6,7 +6,7 @@
 > Il couvre les principes, les frontières, les flux principaux et les responsabilités.
 > Certains choix d'implémentation détaillés (crates exactes, délais de debounce, etc.) ne sont pas figés ici.
 
-> Évolution F6 : le [cadrage fonctionnel de la récurrence](features/F6-gerer-les-taches-recurrentes.md) est validé, sans implémentation ni nouveau format de stockage décidé. La conception technique devra préciser le lien entre occurrences, la sauvegarde cohérente du cochage et de la suivante et le traitement des éditions extérieures. Le modèle actuellement décrit ici, notamment l'absence d'identifiant persistant et de réécriture spontanée, n'est pas modifié par cette spécification.
+> Évolution F6 : la [récurrence](features/F6-gerer-les-taches-recurrentes.md) ajoute un calendrier et un lien persistant réservé aux occurrences d’une série (§11). Le cochage et la suivante partagent le même commit atomique. Les éditions extérieures ne déclenchent toujours aucune réécriture : les générations manquantes attendent la prochaine écriture applicative.
 
 ---
 
@@ -88,7 +88,7 @@ Les notions suivantes sont des projections de présentation :
 
 Ces rangs ne sont jamais persistés et ne créent aucune section visuelle. La date prévue
 détermine le rang sauf retard de deadline sur une tâche active. Les états du domaine
-restent « À faire » et « Terminée » ; aucune date n'est ajoutée automatiquement.
+restent « À faire » et « Terminée ». Une tâche ponctuelle ne reçoit aucune date automatiquement ; F6 propose une première date compatible pour une récurrence.
 
 ---
 
@@ -234,7 +234,7 @@ Le lot 1 a fourni trois surfaces prototypes. Le portage des fonctionnalités F0�
 │  ├── History                                           │
 │  └── Settings                                          │
 │                                                         │
-│  Input parser (/p, /d, #tag)                           │
+│  Input parser (/p, /d, /r, #tag)                           │
 │  Recherche / filtres                                   │
 │  Rangs de tri calculés                                 │
 │  Navigation clavier                                    │
@@ -318,7 +318,9 @@ Task
 │   ├── deadline?
 │   ├── tags[]
 │   ├── state
-│   └── completedDate?
+│   ├── completedDate?
+│   ├── recurrence? (règle, référence, ancrage, écart de deadline)
+│   └── occurrence? (série, génération)
 │
 └── données calculées
     ├── isOverdue
@@ -420,6 +422,7 @@ CreateTaskInput
 ├── title
 ├── plannedDate?
 ├── deadline?
+├── repeat?
 └── tags[]
 ```
 
@@ -429,11 +432,12 @@ Le domaine ne connaît pas :
 
 - `/p` ;
 - `/d` ;
+- `/r` ;
 - `#tag` en tant que syntaxe de saisie.
 
 L'implémentation F2 regroupe le parseur dans `presentation::input` et les projections dans `presentation::panel`. `parse_input(text, today)` reçoit une date locale explicite, évaluée lors de la validation ; `format_edit(task)` réaffiche les dates absolues et échappe les tokens littéraux du titre. Ces fonctions sont testables sans fenêtre ni horloge système. L'égalité des tags sans casse et leur grammaire appartiennent au domaine et sont partagées avec le codec Markdown.
 
-L'entrée structurée `application::TaskInput` contient `title`, `planned`, `deadline` et `tags`. `create_task_from_input` crée une tâche ; `update_task` remplace ces quatre données sans modifier son état ; `reorder_tasks` permute deux positions. L'action `create_task` par titre littéral est conservée. Les actions portant sur une tâche existante reçoivent la révision du snapshot et ses positions physiques, puis passent par le commit atomique du repository. La présentation choisit les voisins visibles de même rang de tri ; le repository ne connaît ni rang de tri ni filtre.
+L'entrée structurée `application::TaskInput` contient `title`, `planned`, `deadline`, `tags` et `repeat`. `create_task_from_input` crée une tâche ; `update_task` modifie l’occurrence à faire, en conservant la date théorique et l’ancrage lors d’un simple report ; `reorder_tasks` permute deux positions. L'action `create_task` par titre littéral est conservée. Les actions portant sur une tâche existante reçoivent la révision du snapshot et ses positions physiques, puis passent par le commit atomique du repository. La présentation choisit les voisins visibles de même rang de tri ; le repository ne connaît ni rang de tri ni filtre.
 
 ---
 
@@ -567,6 +571,51 @@ Aucun composant UI ne parse directement les métadonnées Markdown.
 Le codec est responsable du format canonique lors des écritures initiées par l'application.
 
 Il reconnaît les tokens `#tag` et `@...` non échappés comme métadonnées. Sur une ligne marquée `@title-escaped(1)`, il décode `\#` et `\@` en début de mot du titre ainsi que `\\` en antislash littéral ; sans ce marqueur, les antislashs du titre sont conservés tels quels. La sérialisation échappe les caractères réservés du titre et ajoute ce marqueur si un échappement est nécessaire. La relecture d'un fichier écrit par l'application retrouve donc le titre original sans transformer un fragment littéral en tag ni modifier les antislashs d'un ancien fichier.
+
+---
+
+### 11.1 Récurrence F6
+
+`src/recurrence.rs` porte les calendriers purs : jour, semaine à plusieurs jours,
+intervalle de jours et mois avec repli au dernier jour. Aucun accès disque ni horloge
+implicite : la date locale est fournie à la commande de complétion.
+
+Exemple de ligne récurrente :
+
+```md
+- [ ] Revue #perso @planned(2026-11-06) @deadline(2026-11-09) @occurrence(1:0) @repeat(vendredi;2026-11-06;2026-11-06;3)
+```
+
+- `@occurrence(série:génération)` relie les réalisations indépendamment de leur titre
+  et de leur ordre physique. La série est un entier local alloué au-delà des séries
+  présentes ; sa génération commence à zéro et augmente à chaque complétion.
+- `@repeat(règle;référence;ancrage;écart)` contient la règle dans la syntaxe `/r`,
+  la date théorique de cette occurrence, l’ancrage initial du calendrier et l’écart
+  de deadline en jours calendaires (`none` en l’absence de deadline).
+- `@planned` reste la date affichée et peut différer de la référence après report.
+  Le report conserve la deadline existante et ne modifie ni référence ni ancrage.
+- « Ne plus répéter » retire `@repeat` mais conserve le lien d’occurrence : annuler
+  le cochage précédent doit encore pouvoir retirer cette suivante devenue ponctuelle.
+- Le codec refuse les identités dupliquées, plusieurs occurrences à faire d’une même
+  série et les calendriers invalides. Les anciennes lignes sans ces champs restent valides.
+
+La proposition applicative termine l’occurrence et ajoute la suivante en une seule
+opération ; la même proposition alimente le snapshot optimiste et le commit. Une
+réouverture retire la suivante à faire et refuse une ancienne réalisation ayant une
+suivante déjà terminée. Vue annonce la suppression et laisse annuler avant l’écriture.
+
+Au chargement externe, aucune génération ni écriture n’a lieu. Lors de la prochaine
+écriture applicative, `generate_missing` ajoute une suivante uniquement pour la dernière
+génération terminée de chaque série encore récurrente. Ce même contrôle est appliqué au
+commit du repository, y compris pour une écriture de maintenance. Le lien persistant
+empêche une nouvelle génération après rechargement ou redémarrage. La date effective
+d’une complétion externe sans `@completed` suit toujours le compromis du §12.1.
+
+`task_repeat_preview` utilise les mêmes intentions et calendriers sans toucher au fichier.
+Le contrat donne les trois dates théoriques et leurs deadlines, ainsi que le besoin de
+confirmation lors d’une modification de fréquence ou de deadline. Retirer `/p` seul
+ouvre le formulaire pour choisir explicitement une date avant sauvegarde.
+Le frontend compose les commandes explicites du formulaire ; Rust les parse et les valide.
 
 ---
 
@@ -720,7 +769,7 @@ Le repository :
 
 ## 15. Révisions runtime
 
-Les tâches n'ont pas d'identifiant persistant dans le Markdown.
+Les tâches ponctuelles ordinaires n’ont pas d’identifiant persistant. F6 réserve un lien `@occurrence(série:génération)` aux occurrences issues d’une série (§11) ; les commandes UI continuent d’utiliser les positions physiques et la révision runtime.
 
 Pour éviter qu'une action basée sur un ancien snapshot s'applique à la mauvaise ligne, chaque snapshot possède une révision runtime.
 
@@ -1263,7 +1312,7 @@ Ils ne doivent pas remettre en cause les frontières définies ici sans nouvelle
 | Persistance | Immédiate et atomique |
 | Éditions extérieures | Temps réel via file watcher |
 | Polling | Aucun |
-| Identifiant de tâche persistant | Aucun |
+| Identifiant persistant | Lien série/génération réservé aux occurrences F6 ; aucun pour les tâches ponctuelles ordinaires |
 | Protection concurrence | Revision runtime + fingerprint |
 | Configuration | TOML |
 | Emplacement `tasks.md` | Configurable |

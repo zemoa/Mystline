@@ -8,6 +8,7 @@ use thiserror::Error;
 /// Données métier uniquement : la syntaxe des commandes appartient à la présentation.
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct TaskInput {
+    pub repeat: Option<crate::recurrence::RepeatRule>,
     pub title: String,
     pub planned: Option<NaiveDate>,
     pub deadline: Option<NaiveDate>,
@@ -16,6 +17,8 @@ pub struct TaskInput {
 
 #[derive(Debug, Error)]
 pub enum CreateTaskError {
+    #[error("{0}")]
+    Recurrence(String),
     #[error("le titre de la tâche est vide")]
     EmptyTitle,
     #[error("tag invalide : {0}")]
@@ -89,7 +92,25 @@ pub fn propose_task_change(
     match command {
         TaskCommand::Create(input) => {
             let input = validate(input)?;
+            let recurrence = recurrence_from_input(&input)?;
+            let occurrence = if recurrence.is_some() {
+                Some(crate::recurrence::OccurrenceId {
+                    series: proposed
+                        .tasks
+                        .iter()
+                        .filter_map(|t| t.occurrence.map(|id| id.series))
+                        .max()
+                        .unwrap_or(0)
+                        .checked_add(1)
+                        .ok_or_else(|| CreateTaskError::Recurrence("Trop de séries".into()))?,
+                    generation: 0,
+                })
+            } else {
+                None
+            };
             proposed.tasks.push(Task {
+                recurrence,
+                occurrence,
                 title: input.title,
                 planned: input.planned,
                 deadline: input.deadline,
@@ -102,6 +123,38 @@ pub fn propose_task_change(
         TaskCommand::Update { position, input } => {
             let input = validate(input)?;
             let task = active_task(&mut proposed, *position)?;
+            let unchanged = task.recurrence.as_ref().map(|r| &r.rule) == input.repeat.as_ref();
+            if unchanged {
+                if let Some(recurrence) = &mut task.recurrence {
+                    if input.planned.is_none() {
+                        return Err(CreateTaskError::Recurrence(
+                            "Choisir une date prévue dans le formulaire de répétition.".into(),
+                        ));
+                    }
+                    if input.deadline != task.deadline {
+                        recurrence.deadline_offset = input
+                            .deadline
+                            .map(|d| (d - recurrence.reference).num_days());
+                    }
+                }
+            } else {
+                task.recurrence = recurrence_from_input(&input)?;
+            }
+            // Une tâche ponctuelle peut devenir une série sans fusion par titre.
+            if task.recurrence.is_some() && task.occurrence.is_none() {
+                let series = snapshot
+                    .tasks
+                    .iter()
+                    .filter_map(|t| t.occurrence.map(|id| id.series))
+                    .max()
+                    .unwrap_or(0)
+                    .checked_add(1)
+                    .ok_or_else(|| CreateTaskError::Recurrence("Trop de séries".into()))?;
+                task.occurrence = Some(crate::recurrence::OccurrenceId {
+                    series,
+                    generation: 0,
+                });
+            }
             task.title = input.title;
             task.planned = input.planned;
             task.deadline = input.deadline;
@@ -114,10 +167,30 @@ pub fn propose_task_change(
             task.observed_completion = None;
         }
         TaskCommand::Reopen { position } => {
-            let task = completed_task(&mut proposed, *position)?;
-            task.completed = false;
-            task.completed_date = None;
-            task.observed_completion = None;
+            if let Some(id) = proposed.tasks.get(*position).and_then(|t| t.occurrence) {
+                if proposed.tasks.iter().any(|t| {
+                    t.occurrence.is_some_and(|other| {
+                        other.series == id.series && other.generation > id.generation
+                    }) && t.completed
+                }) {
+                    return Err(CreateTaskError::Recurrence("La suivante est déjà terminée : cette ancienne occurrence ne peut plus être rouverte.".into()));
+                }
+                // Les indices sont stables jusqu'à la réouverture ; retirer ensuite la suivante.
+                let task = completed_task(&mut proposed, *position)?;
+                task.completed = false;
+                task.completed_date = None;
+                task.observed_completion = None;
+                proposed.tasks.retain(|t| {
+                    !t.occurrence.is_some_and(|other| {
+                        other.series == id.series && other.generation > id.generation
+                    })
+                });
+            } else {
+                let task = completed_task(&mut proposed, *position)?;
+                task.completed = false;
+                task.completed_date = None;
+                task.observed_completion = None;
+            }
         }
         TaskCommand::Reorder { from, to } => {
             active_task(&mut proposed, *from)?;
@@ -125,7 +198,31 @@ pub fn propose_task_change(
             proposed.tasks.swap(*from, *to);
         }
     }
+    crate::recurrence::generate_missing(&mut proposed.tasks)
+        .map_err(|error| CreateTaskError::Recurrence(error.into()))?;
     Ok(proposed)
+}
+
+fn recurrence_from_input(
+    input: &TaskInput,
+) -> Result<Option<crate::recurrence::Recurrence>, CreateTaskError> {
+    let Some(rule) = &input.repeat else {
+        return Ok(None);
+    };
+    let reference = input.planned.ok_or_else(|| {
+        CreateTaskError::Recurrence("Choisir la première date de répétition.".into())
+    })?;
+    if !rule.valid() || !rule.compatible(reference) {
+        return Err(CreateTaskError::Recurrence(
+            "La première date n'est pas compatible avec la répétition.".into(),
+        ));
+    }
+    Ok(Some(crate::recurrence::Recurrence {
+        rule: rule.clone(),
+        reference,
+        anchor: reference,
+        deadline_offset: input.deadline.map(|d| (d - reference).num_days()),
+    }))
 }
 
 fn active_task(snapshot: &mut Snapshot, position: usize) -> Result<&mut Task, CreateTaskError> {
@@ -151,7 +248,7 @@ pub fn apply_task_command(
 ) -> Result<Snapshot, CreateTaskError> {
     let proposed = propose_task_change(&repo.snapshot(), revision, command)?;
     if matches!(command, TaskCommand::Reorder { from, to } if from == to) {
-        return Ok(proposed);
+        return Ok(repo.snapshot());
     }
     Ok(repo.commit(revision, proposed.tasks)?)
 }

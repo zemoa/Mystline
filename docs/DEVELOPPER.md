@@ -109,6 +109,24 @@ Depuis la racine, `pnpm --dir frontend test` exécute les scénarios DOM de `fro
 
 Ces scénarios complètent les parcours persistés F2/F3 et les vérifications de compilation. Les tests sans fenêtre et les mocks IPC ne remplacent pas une sonde native ni les essais des raccourcis, du tray et de l'autostart dans chaque session graphique.
 
+## Vérifier la récurrence F6
+
+La recette de haut niveau a été validée avant développement. `cargo test --test f6_documentation`
+vérifie les quatre fréquences, premières dates, commandes invalides et littérales, calendrier fixe,
+retards et anticipation, mois courts, reports et deadlines, filtres et ordre, modifications, arrêt,
+réouverture, persistance, échecs et cochages externes différés. Les fichiers sont temporaires et les
+dates injectées ; aucun test n’attend le passage réel du temps.
+
+`cargo test --manifest-path src-tauri/Cargo.toml tasks::tests` vérifie l’aperçu sans écriture,
+la distinction entre report et nouvelle fréquence, l’écart de deadline depuis la date théorique et
+les protections de réouverture dans le contrat réellement exposé à Vue. `pnpm --dir frontend test`
+vérifie le formulaire des quatre familles, son annulation au clavier, les erreurs conservant le texte,
+la confirmation de l’aperçu et l’avertissement avant suppression de la suivante.
+
+Pour la recette native, tester capture et édition sur Windows, X11 et Wayland, en particulier
+Tab/Maj+Tab, Entrée/Échap, le focus après fermeture du formulaire, le défilement de l’aperçu,
+le cochage et sa réouverture. Les tests DOM ne remplacent pas ces essais.
+
 ## Régénérer les icônes
 
 Le symbole source est `frontend/public/mystline-mark.svg`. `python3 scripts/export-icons.py` régénère les logos de `docs/designs/logos/` et les assets de `src-tauri/icons/` : PNG, ICO et buffer RGBA 32 × 32 partagé par les trays Linux et Windows. Cet export utilise PyGObject/Rsvg, Pycairo, Pillow et Noto Sans ; ces outils ne sont pas des dépendances applicatives. Après une modification du dessin, conserver la source et ses exports dans le même changement.

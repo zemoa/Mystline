@@ -2,7 +2,7 @@
 
 > Migration Tauri/Vue : ces règles restent la référence fonctionnelle. Le portage F0–F5 et sa validation sont suivis dans [la migration](migration-tauri-vue.md).
 
-> Évolution F6 : les règles métier et la syntaxe des commandes des [tâches récurrentes](features/F6-gerer-les-taches-recurrentes.md) ont été validées le 31 octobre 2026. Cette évolution est spécifiée mais non implémentée ; les maquettes et les compléments de parcours restent proposés.
+> Évolution F6 : les règles métier et la syntaxe des commandes des [tâches récurrentes](features/F6-gerer-les-taches-recurrentes.md) ont été validées le 31 octobre 2026. Cette évolution est implémentée ; sa recette automatisée et ses limites de validation native sont décrites dans F6. Les maquettes exploratoires restent des propositions visuelles.
 
 > Présentation validée le 26 octobre 2026 : une liste sans sections, triée par
 > **Retard → aujourd'hui → demain → pas de date → plus tard**. Le retard est indiqué
@@ -589,7 +589,7 @@ Le système ne doit pas multiplier les alertes ou les demandes de confirmation.
 
 # 23. Récurrence
 
-La récurrence est une évolution du MVP, cadrée dans [F6](features/F6-gerer-les-taches-recurrentes.md) et non encore implémentée. Les tâches ponctuelles restent possibles.
+La récurrence étend le MVP suivant [F6](features/F6-gerer-les-taches-recurrentes.md). Les tâches ponctuelles restent possibles.
 
 Le périmètre fonctionnel validé permet de définir une répétition par commande ou formulaire : tous les jours, chaque semaine avec un ou plusieurs jours, tous les N jours ou chaque mois. Le calendrier est fixe, indépendant du jour de réalisation. Un jour mensuel absent est remplacé par le dernier jour du mois, sans changer le jour demandé pour les mois suivants.
 
@@ -601,9 +601,9 @@ Le titre et les tags modifiés concernent l'occurrence à faire et les suivantes
 
 Pour une tâche récurrente, décocher la dernière occurrence terminée encore visible rouvre celle-ci et retire la suivante à faire. Si cette suivante est déjà terminée, l'ancienne ne peut plus être rouverte. Cette règle complète le §14 ; l'historique reste consultatif.
 
-F6 détaille les règles, les scénarios de recette et les propositions d'interface. Le traitement des éditions extérieures récurrentes reste à instruire sans remettre implicitement en cause les protections du fichier existantes.
+F6 détaille les règles et la recette. Une réouverture demande confirmation : elle supprime la suivante et ses éventuelles modifications. Un cochage externe est chargé sans réécriture du fichier ; la suivante est générée à la prochaine sauvegarde déclenchée dans l’application. Le simple passage du temps, un rechargement ou un redémarrage ne génère rien.
 
-Les formes de commande validées pour cette évolution sont `/r jour`, `/r vendredi` (ou un autre jour), `/r lundi,vendredi` (plusieurs jours), `/r 30j` (intervalle en jours) et `/r mois:31` (jour du mois). Elles ne sont pas encore implémentées.
+Les formes de commande validées pour cette évolution sont `/r jour`, `/r vendredi` (ou un autre jour), `/r lundi,vendredi` (plusieurs jours), `/r 30j` (intervalle en jours) et `/r mois:31` (jour du mois). Le bouton « Répéter… » ouvre le formulaire avec les trois prochaines dates théoriques et leurs deadlines éventuelles. Cet aperçu ne crée pas trois tâches.
 
 ---
 

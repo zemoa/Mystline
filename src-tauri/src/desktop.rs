@@ -214,6 +214,26 @@ async fn write_command(
 }
 
 #[tauri::command]
+pub fn task_repeat_preview(
+    app: AppHandle,
+    source: Option<SourceRevision>,
+    position: Option<usize>,
+    draft: String,
+) -> Result<tasks::RepeatPreview, String> {
+    let state = app.state::<Mutex<Resident>>();
+    let state = state.lock().map_err(|error| error.to_string())?;
+    if position.is_some() && source != Some(state.runtime.tasks.source_revision()) {
+        return Err("La liste ou le fichier source a changé.".into());
+    }
+    tasks::preview(
+        &state.runtime.tasks.snapshot,
+        position,
+        &draft,
+        Local::now().date_naive(),
+    )
+}
+
+#[tauri::command]
 pub async fn task_update(
     app: AppHandle,
     source: SourceRevision,
@@ -809,6 +829,7 @@ pub fn run() -> Result<(), Box<dyn std::error::Error>> {
         task_view,
         task_create,
         task_update,
+        task_repeat_preview,
         task_toggle,
         task_reorder,
         settings_source,
@@ -834,6 +855,7 @@ pub fn run() -> Result<(), Box<dyn std::error::Error>> {
         task_view,
         task_create,
         task_update,
+        task_repeat_preview,
         task_toggle,
         task_reorder,
         settings_source,

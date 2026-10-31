@@ -258,3 +258,117 @@ fn le_deplacement_filtre_permute_les_voisins_actifs_de_la_meme_rang() {
         .is_none()
     );
 }
+
+#[test]
+fn apercu_recurrent_et_modifications_reposent_sur_le_meme_calendrier_sans_ecriture() {
+    // RG-F6-15/16 — Étant donné vendredi 9 octobre avec deadline lundi 12.
+    let empty = snapshot("");
+    let created = propose_task_change(
+        &empty,
+        empty.revision,
+        &TaskCommand::Create(
+            parse_input("Revue /r vendredi /p 2026-10-09 /d 2026-10-12", day(9)).unwrap(),
+        ),
+    )
+    .unwrap();
+    let original = created.tasks.clone();
+    // Quand on reporte seulement /p : calendrier et écart de deadline conservés.
+    let reported = preview(
+        &created,
+        Some(0),
+        "Revue /r vendredi /p 2026-10-12 /d 2026-10-12",
+        day(9),
+    )
+    .unwrap();
+    assert!(!reported.requires_confirmation);
+    assert_eq!(reported.dates[0].planned, "2026-10-09");
+    assert_eq!(reported.dates[1].planned, "2026-10-16");
+    assert_eq!(reported.dates[1].deadline.as_deref(), Some("2026-10-19"));
+    // Quand la deadline est modifiée après report : elle reste relative à vendredi.
+    let changed = preview(
+        &created,
+        Some(0),
+        "Revue /r vendredi /p 2026-10-12 /d 2026-10-14",
+        day(9),
+    )
+    .unwrap();
+    assert!(changed.requires_confirmation);
+    assert_eq!(changed.dates[1].deadline.as_deref(), Some("2026-10-21"));
+    // Alors la nouvelle fréquence propose une date compatible et trois dates sans créer de tâche.
+    let changed = preview(&created, Some(0), "Revue /r lundi", day(9)).unwrap();
+    assert!(changed.requires_confirmation);
+    assert_eq!(changed.planned.as_deref(), Some("2026-10-12"));
+    assert_eq!(changed.dates.len(), 3);
+    assert_eq!(changed.dates[1].planned, "2026-10-19");
+    assert!(preview(&created, Some(0), "Revue /r lundi /p 2026-10-09", day(9)).is_err());
+    // Retirer /p demande également une confirmation avec date proposée ; arrêter conserve les dates.
+    let missing = preview(&created, Some(0), "Revue /r vendredi", day(9)).unwrap();
+    assert!(missing.requires_confirmation);
+    assert!(missing.needs_date);
+    let stopped = preview(
+        &created,
+        Some(0),
+        "Revue /p 2026-10-09 /d 2026-10-12",
+        day(9),
+    )
+    .unwrap();
+    assert!(stopped.requires_confirmation);
+    assert!(stopped.repeat.is_none());
+    assert_eq!(stopped.planned.as_deref(), Some("2026-10-09"));
+    assert_eq!(stopped.deadline.as_deref(), Some("2026-10-12"));
+    assert_eq!(created.tasks, original);
+}
+
+#[test]
+fn la_projection_annonce_lannulation_et_interdit_la_reouverture_ancienne_et_lhistorique() {
+    // RG-F6-14 — Étant donné deux réalisations anticipées successives le même jour.
+    let mut snapshot = snapshot("");
+    snapshot = propose_task_change(
+        &snapshot,
+        snapshot.revision,
+        &TaskCommand::Create(parse_input("Revue /r vendredi", day(9)).unwrap()),
+    )
+    .unwrap();
+    snapshot = propose_task_change(
+        &snapshot,
+        snapshot.revision,
+        &TaskCommand::Complete {
+            position: 0,
+            today: day(9),
+        },
+    )
+    .unwrap();
+    let projected = view(&snapshot, &ViewRequest::default(), day(9));
+    assert_eq!(projected["rows"][0]["canReopen"], true);
+    assert!(
+        projected["rows"][0]["reopenWarning"]
+            .as_str()
+            .unwrap()
+            .contains("modifications")
+    );
+    snapshot = propose_task_change(
+        &snapshot,
+        snapshot.revision,
+        &TaskCommand::Complete {
+            position: 1,
+            today: day(9),
+        },
+    )
+    .unwrap();
+    let projected = view(&snapshot, &ViewRequest::default(), day(9));
+    assert_eq!(projected["rows"][0]["canReopen"], false);
+    assert!(toggle(&snapshot, &ViewRequest::default(), 0, day(9)).is_err());
+    assert!(
+        toggle(
+            &snapshot,
+            &ViewRequest {
+                history: true,
+                ..ViewRequest::default()
+            },
+            1,
+            day(9)
+        )
+        .is_err()
+    );
+    assert!(toggle(&snapshot, &ViewRequest::default(), 1, day(10)).is_err());
+}

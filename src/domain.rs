@@ -13,6 +13,8 @@ pub fn same_tag(a: &str, b: &str) -> bool {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Task {
+    pub recurrence: Option<crate::recurrence::Recurrence>,
+    pub occurrence: Option<crate::recurrence::OccurrenceId>,
     pub title: String,
     pub planned: Option<NaiveDate>,
     pub deadline: Option<NaiveDate>,

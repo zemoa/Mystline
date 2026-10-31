@@ -83,6 +83,7 @@ fn une_edition_sans_changement_preserve_la_tache_apres_reouverture() {
     let before = application::create_task_from_input(
         &mut fixture.repo,
         &TaskInput {
+            repeat: None,
             title: literal.into(),
             planned: Some(date(9)),
             deadline: Some(date(20)),

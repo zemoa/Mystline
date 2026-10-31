@@ -1,6 +1,6 @@
 # F6 — Gérer les tâches récurrentes
 
-Statut : **règles métier et syntaxe des commandes validées avec l'utilisateur le 31 octobre 2026 ; évolution non implémentée**. Les maquettes et les compléments de parcours restent proposés. F6 étend le MVP décrit par F0–F5 ; sa présence dans les spécifications ne signifie pas que l'application propose déjà la récurrence.
+Statut : **implémentée ; recette de haut niveau validée par l’utilisateur avant développement le 31 octobre 2026**. Les règles métier et la syntaxe restent la référence ci-dessous. Les maquettes restent exploratoires ; elles ne constituent pas une validation visuelle du formulaire livré.
 
 ## Objectif
 
@@ -10,7 +10,7 @@ Définir une tâche qui revient suivant un calendrier fixe, sans ressaisie et sa
 
 - **RG-F6-01 — Calendrier fixe.** Les dates de répétition sont indépendantes du jour de réalisation. Pour une première date le 1er novembre et un intervalle de 30 jours, une réalisation le 5 novembre laisse la prochaine date au 1er décembre. Un intervalle de 30 jours est distinct d'une répétition mensuelle.
 - **RG-F6-02 — Une seule occurrence à faire.** Une série récurrente possède une seule occurrence à faire. Les répétitions manquées ne créent pas une accumulation d'occurrences à réaliser.
-- **RG-F6-03 — Deux modes de saisie.** L'utilisateur peut définir une répétition avec une commande explicite dans la saisie ou avec un formulaire. Les valeurs par défaut sont définies par RG-F6-15 ; les formes des commandes sont validées dans la section Syntaxe. La présentation reste proposée.
+- **RG-F6-03 — Deux modes de saisie.** L'utilisateur peut définir une répétition avec une commande explicite dans la saisie ou avec un formulaire. Les valeurs par défaut sont définies par RG-F6-15 ; les formes des commandes sont validées dans la section Syntaxe. Le formulaire et les confirmations sont couverts par les tests DOM ; la validation visuelle native reste à effectuer.
 - **RG-F6-04 — Cochage et visibilité.** Au cochage, l'occurrence terminée reste barrée dans la liste pendant la journée et est conservée dans l'historique, selon les principes actuels de F3. La prochaine occurrence apparaît immédiatement dans la liste avec sa date prévue future. Les deux lignes correspondent à deux occurrences distinctes ; une seule reste à faire.
 - **RG-F6-05 — Dates manquées.** Après cochage, la prochaine occurrence est prévue à la première date du calendrier strictement postérieure au jour de réalisation et à la date théorique de l'occurrence qui vient d'être réalisée. Cette seconde condition couvre le cochage anticipé (RG-F6-13). Exemple : une tâche prévue vendredi 6 novembre 2026 et cochée lundi 23 novembre donne une prochaine occurrence vendredi 27 novembre. Aucune occurrence n'est créée pour les 13 et 20 novembre.
 - **RG-F6-06 — Fréquences.** Le cadrage retient les rythmes proposés : tous les jours, chaque semaine avec un ou plusieurs jours choisis, tous les N jours et chaque mois à la même date. RG-F6-07 précise les jours absents d'un mois.
@@ -21,7 +21,7 @@ Définir une tâche qui revient suivant un calendrier fixe, sans ressaisie et sa
 - **RG-F6-11 — Titre et tags.** Une modification du titre ou des tags s'applique à l'occurrence à faire et aux suivantes. L'utilisateur ne demande pas de gestion des modifications rétroactives de l'historique ; aucune fonction dédiée n'est prévue. Les anciennes occurrences peuvent conserver leurs informations selon le fonctionnement actuel de F3.
 - **RG-F6-12 — Arrêter la répétition.** L'action « Ne plus répéter » conserve l'occurrence à faire et ses informations comme tâche ponctuelle. La cocher ne génère plus d'occurrence suivante.
 - **RG-F6-13 — Réalisation anticipée.** Cocher une occurrence future la considère comme réalisée pour sa date théorique, même si le jour du cochage est antérieur. Une tâche prévue vendredi et terminée jeudi donne une prochaine occurrence le vendredi suivant, pas le lendemain du cochage. La date de fin reste le jour réel du cochage.
-- **RG-F6-14 — Annuler un cochage.** Décocher une occurrence terminée encore visible dans le panneau quotidien la rouvre et retire l'occurrence suivante encore à faire, afin de garder une seule occurrence à faire. Si cette suivante a déjà été cochée, l'ancienne occurrence n'est plus réouvrable et reste consultable dans l'historique. L'historique n'offre pas d'action de réouverture. L'effet sur d'éventuelles modifications de la suivante doit être présenté clairement dans le parcours avant validation finale.
+- **RG-F6-14 — Annuler un cochage.** Décocher une occurrence terminée encore visible dans le panneau quotidien la rouvre et retire l'occurrence suivante encore à faire, afin de garder une seule occurrence à faire. Si cette suivante a déjà été cochée, l'ancienne occurrence n'est plus réouvrable et reste consultable dans l'historique. L'historique n'offre pas d'action de réouverture. Avant réouverture, une confirmation annonce la suppression de la suivante et de ses éventuelles modifications, et permet d’annuler (parcours validé avec la recette).
 
 - **RG-F6-15 — Première date.** Proposer la prochaine date compatible avec la règle, aujourd'hui compris. L'utilisateur peut la modifier. Pour chaque jour ou tous les N jours, la proposition initiale est aujourd'hui ; pour chaque semaine, le prochain jour sélectionné ; pour chaque mois, la prochaine date correspondant au jour demandé, avec RG-F6-07 pour les mois courts. Une date incompatible avec la règle est signalée avant l'enregistrement.
 - **RG-F6-16 — Modifier la règle.** Modifier la fréquence concerne l'occurrence à faire et les suivantes, avec une date de départ explicite et un aperçu avant enregistrement. Aucune occurrence à faire supplémentaire n'est créée. Modifier la deadline redéfinit l'écart avec la date théorique de l'occurrence, pour celle-ci et les suivantes ; l'aperçu rend ce résultat visible. Reporter seulement la date prévue reste une opération ponctuelle distincte.
@@ -35,7 +35,7 @@ Définir une tâche qui revient suivant un calendrier fixe, sans ressaisie et sa
 - Une répétition mensuelle suit le jour demandé à l'origine ; une répétition en jours suit un nombre de jours calendaires, week-ends compris.
 - Le cumul des filtres, du classement et des métadonnées ne duplique jamais une occurrence. Deux tâches créées séparément avec un même titre restent deux tâches distinctes : aucune fusion par titre n'est demandée.
 
-## Compléments proposés pour les parcours
+## Parcours implémentés
 
 - L'édition intégrée donne accès à « Répéter… » puis au formulaire. Le formulaire propose les quatre familles de fréquences validées ; chaque semaine permet plusieurs jours.
 - Le formulaire affiche les trois prochaines dates théoriques et, s'il y a une deadline, la deadline correspondante. Cet aperçu ne représente pas trois tâches créées.
@@ -58,7 +58,7 @@ La syntaxe étend les commandes explicites de F2, sans interprétation du langag
 
 Exemple cumulant les métadonnées : `Faire ma revue /p 2026-11-06 /d 2026-11-09 /r vendredi #perso`.
 
-Proposition de comportement :
+Comportement implémenté :
 
 - À la création, `/p` fixe la première date. Sans `/p`, RG-F6-15 fournit la prochaine date compatible. Sans `/d`, aucune deadline n'est ajoutée.
 - Dans l'édition, une règle inchangée conserve son calendrier ; modifier seulement `/p` reporte l'occurrence. Modifier `/r` ouvre l'aperçu de nouvelle fréquence et de première date avant validation ; la date déjà affichée peut être ajustée si elle n'est pas compatible.
@@ -84,7 +84,7 @@ Proposition de comportement :
 3. La prochaine occurrence est prévue le vendredi 27 novembre et apparaît immédiatement.
 4. Les 13 et 20 novembre ne donnent pas de tâches à rattraper.
 
-## Scénarios de recette à réaliser lors du développement
+## Scénarios de recette
 
 | Cas | Résultat attendu |
 | --- | --- |
@@ -106,14 +106,16 @@ Proposition de comportement :
 | Redémarrer ou recharger plusieurs fois le même état | Même occurrence en attente ; aucune génération répétée |
 | Commande invalide ou annulation du formulaire | Texte conservé en cas d'erreur, état précédent conservé en cas d'annulation |
 
-Ces scénarios décrivent la recette attendue ; ils ne sont pas des tests déjà exécutés.
+Ces scénarios sont couverts par les parcours persistés de [tests/f6_documentation.rs](../../tests/f6_documentation.rs), les tests de contrat [tasks_tests.rs](../../src-tauri/src/tasks_tests.rs) et les interactions DOM [App.test.ts](../../frontend/tests/App.test.ts).
 
-## Points restant à valider ou à instruire
+Les tests utilisent des dates fixes, de vrais fichiers temporaires pour les parcours Rust et un adaptateur IPC contrôlé pour Vue. Ils ne remplacent pas une recette graphique native Windows, X11 et Wayland (navigation Tab/Maj+Tab, focus, rendu et défilement).
 
-- **Présentation à valider :** maquettes et compléments de parcours proposés, notamment les interactions d'édition et les messages de validation. Les cinq formes de commande `/r` ci-dessus sont validées ; elles ne sont pas encore utilisables dans l'application.
-- **Proposition de parcours :** si la suivante a été modifiée avant l'annulation du cochage, annoncer que sa suppression abandonne ces modifications et permettre d'annuler l'action. Si elle est déjà terminée, expliquer pourquoi l'ancienne ne peut plus être rouverte.
-- **Conception technique avant développement :** stockage du calendrier et du lien entre occurrences, sauvegarde cohérente du cochage et de la suivante, compatibilité avec les fichiers existants et reconnaissance d'une génération déjà effectuée après redémarrage. Aucun choix de format ni d'identifiant persistant n'est décidé ici.
-- **Intégration au fichier externe :** préciser le traitement d'un cochage externe récurrent en respectant l'absence de réécriture spontanée de la source (architecture §12). F6 ne vaut pas autorisation de réécrire automatiquement une édition extérieure. Ce point doit être tranché avant de déclarer les parcours externes couverts.
+## Décisions d’implémentation et validation restante
+
+- **Annulation du cochage :** avertissement sur la suppression de la suivante et de ses éventuelles modifications ; possibilité d’annuler. Ce comportement a été validé avant développement.
+- **Cochage externe :** décision explicitement validée pendant l’implémentation : charger l’état sans réécrire `tasks.md`, puis générer la suivante à la prochaine sauvegarde déclenchée dans l’application. Aucune génération au seul rechargement ou redémarrage. Une complétion externe sans date conserve le compromis F3 sur la date d’observation.
+- **Stockage :** calendrier, date théorique, ancrage et écart de deadline dans `@repeat`, lien de série et génération dans `@occurrence`. Voir [architecture §11.1](../ARCHITECTURE.md#111-récurrence-f6). Les anciennes tâches restent lisibles. Le cochage et la génération partagent le commit atomique existant ; aucune migration spontanée du fichier.
+- **Présentation :** formulaire et confirmations implémentés suivant la recette validée ; les SVG demeurent des explorations. La recette graphique native sur les plateformes cibles reste à réaliser.
 
 ## Maquettes exploratoires
 

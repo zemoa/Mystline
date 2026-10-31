@@ -166,11 +166,11 @@ describe('capture confirmée et erreurs', () => {
     await flushPromises()
     expect(app.get<HTMLInputElement>('#capture').element.value).toBe('Nouveau brouillon')
     expect(app.text()).toContain('Récupérer une saisie non enregistrée')
-    expect(app.get<HTMLButtonElement>('button.secondary').element.disabled).toBe(true)
-    await app.get('button.secondary').trigger('click')
+    expect(app.get<HTMLButtonElement>('button.recover-draft').element.disabled).toBe(true)
+    await app.get('button.recover-draft').trigger('click')
     expect(app.get<HTMLInputElement>('#capture').element.value).toBe('Nouveau brouillon')
     await app.get('#capture').setValue('')
-    await app.get('button.secondary').trigger('click')
+    await app.get('button.recover-draft').trigger('click')
     expect(app.get<HTMLInputElement>('#capture').element.value).toBe('À récupérer')
     expect(app.get('[role=alert]').text()).toContain('Disque inaccessible')
   })
@@ -187,12 +187,12 @@ describe('capture confirmée et erreurs', () => {
     desktop.invoke.mockImplementation(async command => command === 'task_create' ? second.promise : undefined)
     await app.get('#capture').setValue('Capture valide B')
     await app.get('form').trigger('submit')
-    expect(app.get<HTMLButtonElement>('button.secondary').element.disabled).toBe(true)
-    await app.get('button.secondary').trigger('click')
+    expect(app.get<HTMLButtonElement>('button.recover-draft').element.disabled).toBe(true)
+    await app.get('button.recover-draft').trigger('click')
     expect(app.get<HTMLInputElement>('#capture').element.value).toBe('Capture valide B')
     second.resolve(); await flushPromises()
     emit('surface-closed', 11); emit('surface-opened', { activation: 12, reset: true }); await flushPromises()
-    await app.get('button.secondary').trigger('click')
+    await app.get('button.recover-draft').trigger('click')
     expect(app.get<HTMLInputElement>('#capture').element.value).toBe('Capture échouée A')
     expect(app.get('[role=alert]').text()).toContain('Échec A')
   })
@@ -581,4 +581,161 @@ describe('paramètres', () => {
     expect(app.find('[role=alert]').exists()).toBe(false)
     expect(app.get<HTMLButtonElement>('#capture-shortcut + button').element.disabled).toBe(false)
   })
+})
+
+describe("tâches récurrentes F6", () => {
+  const preview = {
+    draft: "Revue /p 2026-11-06 /d 2026-11-09 /r vendredi #perso",
+    repeat: "vendredi", planned: "2026-11-06", deadline: "2026-11-09",
+    dates: [
+      { planned: "2026-11-06", deadline: "2026-11-09" },
+      { planned: "2026-11-13", deadline: "2026-11-16" },
+      { planned: "2026-11-20", deadline: "2026-11-23" },
+    ], requiresConfirmation: true,
+  }
+  function recurringDesktop(rows = [row(0, "Revue", { repeat: "vendredi", editDraft: preview.draft })]) {
+    desktop.invoke.mockImplementation(async command => {
+      if (command === "desktop_status") return status
+      if (command === "task_view") return taskView({ rows })
+      if (command === "task_repeat_preview") return { ...preview }
+    })
+  }
+  function button(app: VueWrapper, label: string) {
+    const found = app.findAll("button").find(item => item.text() === label)
+    if (!found) throw new Error(`Bouton absent : ${label}`)
+    return found
+  }
+
+  it.each([ ["jour", "/r jour"], ["semaine", "/r lundi,vendredi"], ["intervalle", "/r 30j"], ["mois", "/r mois:31"] ])("propose la fréquence %s et son aperçu sans créer plusieurs tâches", async (frequency, command) => {
+    // RG-F6-03/06 — Quand on choisit une des quatre familles dans le formulaire.
+    recurringDesktop()
+    desktop.invoke.mockImplementation(async name => name === "desktop_status" ? status : name === "task_repeat_preview" ? { ...preview, repeat: "jour", planned: "2026-11-01" } : undefined)
+    const app = await open("capture")
+    await app.get("#capture").setValue("Revue #perso")
+    await button(app, "Répéter…").trigger("click"); await flushPromises()
+    const dialog = app.get("[aria-label=\"Répéter la tâche\"]")
+    expect(document.activeElement?.id).toBe("repeat-frequency")
+    await dialog.get("select").setValue(frequency)
+    if (frequency === "semaine") await dialog.get<HTMLInputElement>("input[value=vendredi]").setValue(true)
+    await flushPromises()
+    const calls = desktop.invoke.mock.calls.filter(([name]) => name === "task_repeat_preview")
+    expect(calls.at(-1)?.[1].draft).toContain(command)
+    expect(dialog.text()).toContain("2026-11-13")
+    expect(dialog.text()).toContain("2026-11-16")
+    expect(desktop.invoke.mock.calls.filter(([name]) => name === "task_create")).toHaveLength(0)
+    await button(app, "Utiliser cette répétition").trigger("click")
+    expect(app.get<HTMLInputElement>("#capture").element.value).toBe(preview.draft)
+    await app.get("form").trigger("submit"); await flushPromises()
+    expect(desktop.invoke).toHaveBeenCalledWith("task_create", { draft: preview.draft, session: 3, activation: 10 })
+  })
+
+  it("annuler le formulaire au clavier conserve la saisie et la tâche existante", async () => {
+    // RG-F6-03 — Quand Échap ferme seulement le formulaire.
+    recurringDesktop()
+    const app = await open("panel")
+    await app.get(".task-title").trigger("click")
+    const before = app.get<HTMLInputElement>("#edit").element.value
+    await button(app, "Répéter…").trigger("click"); await flushPromises()
+    await app.get("#repeat-planned").setValue("2026-12-04"); await flushPromises()
+    await app.get("#repeat-planned").trigger("keydown", { key: "Escape" }); await flushPromises()
+    expect(app.find("[aria-label=\"Répéter la tâche\"]").exists()).toBe(false)
+    expect(app.get<HTMLInputElement>("#edit").element.value).toBe(before)
+    expect(document.activeElement?.id).toBe("edit")
+    expect(desktop.invoke.mock.calls.filter(([name]) => name === "task_update")).toHaveLength(0)
+  })
+
+  it("une fréquence ou deadline modifiée demande validation de l’aperçu avant sauvegarde", async () => {
+    // RG-F6-16 — Quand une commande modifiée est soumise.
+    recurringDesktop()
+    const app = await open("panel")
+    await app.get(".task-title").trigger("click")
+    await app.get("#edit").setValue("Revue /r vendredi /p 2026-11-06 /d 2026-11-09 #perso")
+    await app.get("form.composer").trigger("submit"); await flushPromises()
+    expect(app.get("[aria-label=\"Confirmer la répétition\"]").text()).toContain("2026-11-16")
+    expect(desktop.invoke.mock.calls.filter(([name]) => name === "task_update")).toHaveLength(0)
+    await button(app, "Annuler la modification").trigger("click")
+    expect(app.find("#edit").exists()).toBe(true)
+    await app.get("form.composer").trigger("submit"); await flushPromises()
+    await button(app, "Confirmer et enregistrer").trigger("click"); await flushPromises()
+    expect(desktop.invoke).toHaveBeenCalledWith("task_update", { source: { generation: 2, revision: 7 }, position: 0, draft: preview.draft })
+  })
+
+  it("un aperçu invalide conserve le texte et interdit l’enregistrement", async () => {
+    recurringDesktop()
+    desktop.invoke.mockImplementation(async command => {
+      if (command === "desktop_status") return status
+      if (command === "task_view") return taskView({ rows: [row(0, "Revue", { repeat: "jour" })] })
+      if (command === "task_repeat_preview") throw new Error("Première date incompatible")
+    })
+    const app = await open("panel")
+    await app.get(".task-title").trigger("click")
+    await app.get("#edit").setValue("Revue /r vendredi /p 2026-11-02")
+    await app.get("form.composer").trigger("submit"); await flushPromises()
+    expect(app.get("[role=alert]").text()).toContain("incompatible")
+    expect(app.get<HTMLInputElement>("#edit").element.value).toBe("Revue /r vendredi /p 2026-11-02")
+    expect(desktop.invoke.mock.calls.filter(([name]) => name === "task_update")).toHaveLength(0)
+  })
+
+  it("la réouverture annonce la perte des modifications de la suivante et peut être annulée", async () => {
+    // RG-F6-14 — Quand on décoche une occurrence terminée.
+    recurringDesktop([row(0, "Revue", { completed: true, canReopen: true, reopenWarning: "La suivante et ses éventuelles modifications seront supprimées." })])
+    const app = await open("panel")
+    await app.get("input[type=checkbox]").trigger("click"); await flushPromises()
+    expect(app.get("[aria-label=\"Confirmer la réouverture\"]").text()).toContain("modifications")
+    await button(app, "Annuler la réouverture").trigger("click")
+    expect(desktop.invoke.mock.calls.filter(([name]) => name === "task_toggle")).toHaveLength(0)
+    await app.get("input[type=checkbox]").trigger("click"); await flushPromises()
+    await button(app, "Réouvrir et retirer la suivante").trigger("click"); await flushPromises()
+    expect(desktop.invoke).toHaveBeenCalledWith("task_toggle", { source: { generation: 2, revision: 7 }, position: 0, request: { query: "", tag: null, history: false } })
+  })
+
+  it("l’ancienne occurrence devient non réouvrable lorsque la suivante est terminée", async () => {
+    recurringDesktop([row(0, "Revue", { completed: true, canReopen: false })])
+    const app = await open("panel")
+    expect(app.get<HTMLInputElement>("input[type=checkbox]").element.disabled).toBe(true)
+    expect(app.get("input[type=checkbox]").attributes("title")).toContain("suivante est déjà terminée")
+  })
+
+  it("Entrée applique le formulaire puis redonne le focus à la saisie sans sauvegarder", async () => {
+    recurringDesktop()
+    const app = await open("capture")
+    await app.get("#capture").setValue("Revue")
+    await button(app, "Répéter…").trigger("click"); await flushPromises()
+    await app.get("#repeat-planned").trigger("keydown", { key: "Enter" }); await flushPromises()
+    expect(app.find("[aria-label=\"Répéter la tâche\"]").exists()).toBe(false)
+    expect(app.get<HTMLInputElement>("#capture").element.value).toBe(preview.draft)
+    expect(document.activeElement?.id).toBe("capture")
+    expect(desktop.invoke.mock.calls.filter(([name]) => name === "task_create")).toHaveLength(0)
+  })
+
+  it("Ne plus répéter retire seulement la règle et garde les informations de la tâche", async () => {
+    recurringDesktop()
+    const app = await open("panel")
+    await app.get(".task-title").trigger("click")
+    await button(app, "Ne plus répéter").trigger("click")
+    const draft = app.get<HTMLInputElement>("#edit").element.value
+    expect(draft).not.toContain("/r vendredi")
+    expect(draft).toContain("/p 2026-11-06")
+    expect(draft).toContain("/d 2026-11-09")
+    expect(draft).toContain("#perso")
+    expect(desktop.invoke.mock.calls.filter(([name]) => name === "task_update")).toHaveLength(0)
+  })
+
+
+  it("retirer /p seul ouvre le formulaire pour choisir une date au lieu de supprimer le calendrier", async () => {
+    recurringDesktop()
+    desktop.invoke.mockImplementation(async command => {
+      if (command === "desktop_status") return status
+      if (command === "task_view") return taskView({ rows: [row(0, "Revue", { repeat: "vendredi", editDraft: preview.draft })] })
+      if (command === "task_repeat_preview") return { ...preview, needsDate: true }
+    })
+    const app = await open("panel")
+    await app.get(".task-title").trigger("click")
+    await app.get("#edit").setValue("Revue /r vendredi #perso")
+    await app.get("form.composer").trigger("submit"); await flushPromises()
+    expect(app.find("[aria-label=\"Répéter la tâche\"]").exists()).toBe(true)
+    expect(app.get<HTMLInputElement>("#repeat-planned").element.value).toBe("2026-11-06")
+    expect(desktop.invoke.mock.calls.filter(([name]) => name === "task_update")).toHaveLength(0)
+  })
+
 })

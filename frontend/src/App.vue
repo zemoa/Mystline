@@ -5,13 +5,15 @@ import { listen, type UnlistenFn } from "@tauri-apps/api/event"
 import { getCurrentWindow } from "@tauri-apps/api/window"
 import Icon from "./Icon.vue"
 import SyntaxHelp from "./SyntaxHelp.vue"
+import RepeatForm from "./RepeatForm.vue"
 import { version as appVersion } from "../../src-tauri/tauri.conf.json"
 
 type Surface = "capture" | "panel"
 interface Source { generation: number; revision: number }
 interface UpdateStatus { sequence: number; phase: string; version: string | null; message: string }
 interface DesktopStatus { version: number; tasksFile: string; taskCount: number; revision: number; today: string; autostart: boolean; showTasksOnStartup: boolean; captureShortcut: string; panelShortcut: string; captureActive: boolean; panelActive: boolean; repositoryError: string | null }
-interface Row { position: number; rank: "overdue" | "today" | "tomorrow" | "undated" | "later"; title: string; tags: string[]; planned: string | null; deadline: string | null; deadlineTone: string | null; completed: boolean; completedDate: string | null; editDraft: string }
+interface Row { position: number; rank: "overdue" | "today" | "tomorrow" | "undated" | "later"; title: string; tags: string[]; planned: string | null; deadline: string | null; deadlineTone: string | null; completed: boolean; completedDate: string | null; editDraft: string; repeat?: string | null; canReopen?: boolean; reopenWarning?: string | null }
+interface RepeatPreview { draft: string; repeat: string | null; planned: string | null; deadline: string | null; dates: { planned: string; deadline: string | null }[]; requiresConfirmation: boolean; needsDate: boolean }
 interface TaskView { version: number; source: Source; today: string; busy: boolean; rows: Row[] }
 interface Editor { position: number; source: Source; draft: string; invalidated: boolean }
 const params = new URLSearchParams(location.search)
@@ -32,6 +34,9 @@ const searching = ref(false)
 const adding = ref(false)
 const help = ref(false)
 const editor = ref<Editor | null>(null)
+const repeatForm = ref(false)
+const repeatConfirmation = ref<RepeatPreview | null>(null)
+const reopenConfirmation = ref<{ row: Row; source: Source } | null>(null)
 const pending = ref(false)
 const settingsPending = ref(false)
 const settingsView = ref(false)
@@ -119,6 +124,7 @@ async function refresh() {
   } catch (cause) { if (!disposed && sequence === requests) error.value = String(cause) }
 }
 function resetTransientState() {
+  repeatForm.value = false; repeatConfirmation.value = null; reopenConfirmation.value = null
   draft.value = ""; query.value = ""; tag.value = null; history.value = false
   searching.value = false; adding.value = false; help.value = false; editor.value = null
   error.value = ""; success.value = ""; selected.value = null; pending.value = false
@@ -160,12 +166,14 @@ function scrollSelection() {
 }
 async function beginAdd() {
   if (editor.value || history.value) return
+  repeatForm.value = false; repeatConfirmation.value = null
   adding.value = true; error.value = ""; help.value = false
   await nextTick(); captureInput.value?.focus()
 }
 async function beginEdit(row: Row) {
   if (row.completed || history.value || adding.value || pending.value || view.value?.busy || !view.value) return
   selected.value = row.position
+  repeatForm.value = false; repeatConfirmation.value = null
   editor.value = { position: row.position, source: { ...view.value.source }, draft: row.editDraft, invalidated: false }
   error.value = ""; help.value = false; searching.value = false
   await nextTick(); editorInput.value?.focus()
@@ -181,7 +189,7 @@ function toggleHistory() {
   void focusList()
 }
 async function submitCreate() {
-  if (pending.value) return
+  if (pending.value || repeatForm.value) return
   const original = draft.value
   const submittedActivation = activation
   pending.value = true; error.value = ""
@@ -204,22 +212,51 @@ function recoverDraft() {
   const failed = recovered.value.shift()
   if (failed) { draft.value = failed.draft; error.value = failed.error; if (surface === "panel") adding.value = true; void nextTick(() => captureInput.value?.focus()) }
 }
-async function submitEdit() {
+function applyRepeat(value: string) {
+  if (editor.value) editor.value.draft = value
+  else draft.value = value
+  repeatForm.value = false; repeatConfirmation.value = null
+  void focusComposer()
+}
+async function focusComposer() { await nextTick(); (editor.value ? editorInput.value : captureInput.value)?.focus() }
+function closeRepeat() { repeatForm.value = false; void focusComposer() }
+function stopRepeat() {
+  if (editor.value) editor.value.draft = editor.value.draft.replace(/(^|\s)\/r\s+\S+/g, "$1").trim()
+  repeatForm.value = false; repeatConfirmation.value = null
+}
+async function submitEdit(confirmed = false) {
   const submittedActivation = activation
   const editing = editor.value
-  if (!editing || editing.invalidated || pending.value) return
+  if (!editing || editing.invalidated || pending.value || repeatForm.value || (!confirmed && repeatConfirmation.value)) return
   pending.value = true; error.value = ""
   try {
+    if (!confirmed && (/(^|\s)\/r(?=\s|$)/.test(editing.draft) || view.value?.rows.find(row => row.position === editing.position)?.repeat)) {
+      const preview = await invoke<RepeatPreview>("task_repeat_preview", { source: editing.source, position: editing.position, draft: editing.draft })
+      if (activation !== submittedActivation || editor.value !== editing) return
+      if (preview.needsDate) { repeatForm.value = true; return }
+      if (preview.requiresConfirmation) { repeatConfirmation.value = preview; return }
+    }
     await invoke("task_update", { source: editing.source, position: editing.position, draft: editing.draft })
     if (activation === submittedActivation && editor.value === editing) { editor.value = null; help.value = false; await focusList() }
   } catch (cause) { if (activation === submittedActivation) error.value = String(cause) }
   finally { if (activation === submittedActivation) { pending.value = false; await refresh() } }
 }
 async function toggleTask(row: Row) {
-  const submittedActivation = activation
   if (!view.value || history.value || pending.value || view.value.busy || editor.value || adding.value) return
+  if (row.completed && row.canReopen === false) { error.value = "La suivante est déjà terminée : cette ancienne occurrence ne peut plus être rouverte."; return }
+  if (row.reopenWarning) { reopenConfirmation.value = { row, source: { ...view.value.source } }; return }
+  await performToggle(row, view.value.source)
+}
+async function confirmReopen() {
+  const confirmation = reopenConfirmation.value
+  if (!confirmation) return
+  reopenConfirmation.value = null
+  await performToggle(confirmation.row, confirmation.source)
+}
+async function performToggle(row: Row, source: Source) {
+  const submittedActivation = activation
   pending.value = true; error.value = ""
-  try { await invoke("task_toggle", { source: view.value.source, position: row.position, request: request() }) }
+  try { await invoke("task_toggle", { source, position: row.position, request: request() }) }
   catch (cause) { if (activation === submittedActivation) error.value = String(cause) }
   finally { if (activation === submittedActivation) { pending.value = false; await refresh(); scrollSelection() } }
 }
@@ -242,7 +279,10 @@ function keydown(event: KeyboardEvent) {
   if (event.key === "F1" && (surface === "capture" || !settingsView.value)) { event.preventDefault(); help.value = !help.value; return }
   if (event.key === "Escape") {
     event.preventDefault()
-    if (help.value) help.value = false
+    if (repeatForm.value) closeRepeat()
+    else if (repeatConfirmation.value) repeatConfirmation.value = null
+    else if (reopenConfirmation.value) reopenConfirmation.value = null
+    else if (help.value) help.value = false
     else if (editor.value) { if (pending.value) return; editor.value = null; error.value = ""; void focusList() }
     else if (adding.value) { if (pending.value) return; adding.value = false; draft.value = ""; error.value = ""; void focusList() }
     else if (searching.value || query.value) { searching.value = false; query.value = ""; void focusList() }
@@ -325,10 +365,12 @@ onUnmounted(() => { disposed = true; for (const stop of unlisteners) stop(); res
         <label class="sr-only" for='capture'>Saisie de la tâche</label>
         <input id='capture' ref="captureInput" v-model="draft" :readonly="pending" placeholder="Que souhaitez-vous faire ?" autocomplete="off" />
         <p class="muted hints">{{ pending ? "Enregistrement…" : "Entrée pour ajouter · Échap pour fermer · F1 pour l’aide" }}</p>
+        <button type="button" class="secondary" :disabled="pending" @click="repeatForm = !repeatForm">Répéter…</button>
       </form>
+      <RepeatForm v-if="repeatForm" :draft="draft" @apply="applyRepeat" @cancel="closeRepeat" />
       <SyntaxHelp v-if="help" />
       <p v-if="error" role="alert" class="error">{{ error }}</p>
-      <button v-if="recovered.length" class="secondary" :disabled="!canRecover" @click="recoverDraft">Récupérer une saisie non enregistrée</button>
+      <button v-if="recovered.length" class="secondary recover-draft" :disabled="!canRecover" @click="recoverDraft">Récupérer une saisie non enregistrée</button>
     </div>
 
     <template v-else>
@@ -354,19 +396,31 @@ onUnmounted(() => { disposed = true; for (const stop of unlisteners) stop(); res
         <div v-if="searching || query" class="search-bar"><label class="sr-only" for="search">Rechercher dans le titre et les tags</label><input id="search" ref="searchInput" v-model="query" placeholder="Rechercher un titre ou un tag" @keydown.enter.prevent="searching = false; focusList()" /><button aria-label="Fermer la recherche" @click="query = ''; searching = false; focusList()"><Icon name="close" /></button></div>
         <div v-if='tag' class="filter"><span>Filtre : #{{ tag }}</span><button class="secondary" @click="tag = null">Retirer le filtre</button></div>
         <SyntaxHelp v-if="help && !editor && !adding" />
-        <form v-if="editor" class="composer" @submit.prevent="submitEdit">
-          <label for="edit">Modifier la tâche</label><input id="edit" ref="editorInput" v-model="editor.draft" :readonly="pending" autocomplete="off" />
+        <form v-if="editor" class="composer" @submit.prevent="submitEdit()">
+          <label for="edit">Modifier la tâche</label><input id="edit" ref="editorInput" v-model="editor.draft" :readonly="pending || !!repeatConfirmation || repeatForm" autocomplete="off" />
           <SyntaxHelp v-if="help" /><p class="muted">Entrée pour enregistrer · Échap pour annuler · F1 pour l’aide</p>
+          <div class="form-actions"><button type="button" class="secondary" :disabled="pending || editor.invalidated" @click="repeatForm = !repeatForm; repeatConfirmation = null">Répéter…</button><button v-if="/(^|\s)\/r\s/.test(editor.draft)" type="button" class="secondary" :disabled="pending" @click="stopRepeat">Ne plus répéter</button></div>
           <div class="form-actions"><button type="button" class="secondary" :disabled="pending" @click="editor = null; help = false; focusList()">Annuler</button><button class="primary" :disabled="pending || editor.invalidated">{{ pending ? "Enregistrement…" : "Enregistrer" }}</button></div>
         </form>
+        <RepeatForm v-if="repeatForm && editor" :draft="editor.draft" :source="editor.source" :position="editor.position" @apply="applyRepeat" @cancel="closeRepeat" />
+        <section v-if="repeatConfirmation && editor" role="dialog" aria-label="Confirmer la répétition" class="repeat-form">
+          <h2>{{ repeatConfirmation.repeat ? "Confirmer le calendrier" : "Ne plus répéter" }}</h2><p>Cette modification concerne l’occurrence à faire et les suivantes.</p>
+          <ol><li v-for="date in repeatConfirmation.dates" :key="date.planned">{{ date.planned }}<span v-if="date.deadline"> · deadline {{ date.deadline }}</span></li></ol>
+          <p v-if="!repeatConfirmation.repeat">La tâche à faire sera conservée comme tâche ponctuelle.</p>
+          <p v-else>Première date prévue : {{ repeatConfirmation.planned }}. Une seule occurrence reste à faire.</p>
+          <div class="form-actions"><button class="secondary" :disabled="pending" @click="repeatConfirmation = null">Annuler la modification</button><button class="primary" :disabled="pending || editor.invalidated" @click="editor.draft = repeatConfirmation.draft; repeatConfirmation = null; submitEdit(true)">Confirmer et enregistrer</button></div>
+        </section>
         <form v-if="adding" class="composer" @submit.prevent="submitCreate">
           <label for='capture'>Ajouter une tâche</label><input id='capture' ref="captureInput" v-model="draft" :readonly="pending" placeholder="Une tâche, simplement" autocomplete="off" />
           <SyntaxHelp v-if="help" /><p class="muted">Entrée pour ajouter · Échap pour annuler · F1 pour l’aide</p><button class="primary" :disabled="pending">{{ pending ? "Enregistrement…" : "Ajouter" }}</button>
+          <button type="button" class="secondary" :disabled="pending" @click="repeatForm = !repeatForm">Répéter…</button>
         </form>
+        <RepeatForm v-if="repeatForm && adding" :draft="draft" @apply="applyRepeat" @cancel="closeRepeat" />
+        <section v-if="reopenConfirmation" role="dialog" aria-label="Confirmer la réouverture" class="repeat-form"><p>{{ reopenConfirmation.row.reopenWarning }}</p><div class="form-actions"><button class="secondary" @click="reopenConfirmation = null">Annuler la réouverture</button><button class="primary" @click="confirmReopen">Réouvrir et retirer la suivante</button></div></section>
         <div ref="list" class="task-list" tabindex="0" role="list" aria-label="Tâches">
           <p v-if="!view?.rows.length" class="empty">{{ query || tag ? "Aucun résultat" : history ? "Aucune tâche terminée" : "Aucune tâche" }}</p>
           <article v-for="row in view?.rows || []" :key="row.position" role="listitem" :data-position="row.position" :data-rank="row.rank" :class="['task', { selected: selected === row.position, completed: row.completed }]" @click="selected = row.position">
-            <input v-if="!history" type="checkbox" :checked="row.completed" :disabled="pending || view?.busy || !!editor || adding" :aria-label="(row.completed ? 'Réouvrir : ' : 'Terminer : ') + row.title" @change="toggleTask(row)" />
+            <input v-if="!history" type="checkbox" :checked="row.completed" :disabled="pending || view?.busy || !!editor || adding || !!reopenConfirmation || (row.completed && row.canReopen === false)" :title="row.completed && row.canReopen === false ? 'La suivante est déjà terminée ; cette occurrence reste consultable dans l’historique.' : ''" :aria-label="(row.completed ? 'Réouvrir : ' : 'Terminer : ') + row.title" @click.prevent="toggleTask(row)" />
             <Icon v-else name="check" />
             <div class="task-body">
               <button v-if="!history && !row.completed" class="task-title" @click="beginEdit(row)">{{ row.title }}</button><span v-else class="task-title">{{ row.title }}</span>
@@ -377,6 +431,7 @@ onUnmounted(() => { disposed = true; for (const stop of unlisteners) stop(); res
                 <span v-if="row.deadline" :class="['deadline', row.deadlineTone]">Échéance {{ !row.completed ? relativeDate(row.deadline) : dateLabel(row.deadline) }}</span>
                 <span v-if="row.deadlineTone === 'overdue'" class="overdue-badge">En retard</span>
                 <span v-if="!history && row.completed" class="date">Terminée aujourd’hui</span>
+                <span v-if="row.repeat" class="date">↻ {{ row.repeat }}</span>
               </div>
             </div>
             <button v-if="!history && !row.completed" class="edit-action" :aria-label="'Modifier : ' + row.title" @click="beginEdit(row)"><Icon name="edit" /></button>
@@ -388,7 +443,7 @@ onUnmounted(() => { disposed = true; for (const stop of unlisteners) stop(); res
           <button :disabled="pending || view?.busy || !canReorder(selectedTask, true)" :aria-label="'Descendre : ' + selectedTask.title" @click="reorder(true)">↓ Descendre</button>
         </div>
         <footer><button v-if="!history" class="primary add-task" :disabled="adding || !!editor" @click="beginAdd"><Icon name="add" />Ajouter une tâche</button><span v-if="view?.busy" class="muted" role="status">Enregistrement…</span><span v-else class="muted">↑ ↓ naviguer · Espace cocher · F1 aide</span></footer>
-        <button v-if="recovered.length" class="secondary" :disabled="!canRecover" @click="recoverDraft">Récupérer une saisie non enregistrée</button>
+        <button v-if="recovered.length" class="secondary recover-draft" :disabled="!canRecover" @click="recoverDraft">Récupérer une saisie non enregistrée</button>
       </template>
       <div v-else class="settings-body">
         <section class="setting-section"><h2>Fichier de tâches</h2><p class="muted path">Source actuelle : {{ status?.tasksFile }}</p>

@@ -1,4 +1,4 @@
-use super::input::{format_edit, parse_input};
+use super::input::{format_edit, parse_edit_input};
 use crate::{
     application,
     domain::{Task, same_tag},
@@ -244,7 +244,7 @@ impl PanelState {
         if editor.invalidated {
             return None;
         }
-        let result = parse_input(&editor.draft, today)
+        let result = parse_edit_input(&editor.draft, today)
             .map_err(|error| error.to_string())
             .and_then(|input| {
                 application::update_task(repo, editor.revision, editor.position, &input)
